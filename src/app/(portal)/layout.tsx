@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@/lib/auth";
 import { SignOutButton } from "@/components/portal/SignOutButton";
+import { BackgroundFX } from "@/components/ui/BackgroundFX";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const session = await getCurrentProfile();
@@ -13,6 +14,7 @@ export default async function PortalLayout({ children }: { children: React.React
 
   return (
     <div className="min-h-screen">
+      <BackgroundFX />
       <header className="sticky top-0 z-40 border-b border-ink-700 bg-ink-900/85 backdrop-blur">
         <div className="max-w-6xl mx-auto px-5 sm:px-8 h-20 flex items-center justify-between">
           <Link href="/" className="flex items-center">

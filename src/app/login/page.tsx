@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { BackgroundFX } from "@/components/ui/BackgroundFX";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -68,6 +69,7 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-12">
+      <BackgroundFX />
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-8">
           <Image src="/logo.png" alt="NU STYL" width={160} height={62} priority />

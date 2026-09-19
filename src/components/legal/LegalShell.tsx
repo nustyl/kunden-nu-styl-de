@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { BackgroundFX } from "@/components/ui/BackgroundFX";
 
 export function LegalShell({
   title,
@@ -10,6 +11,7 @@ export function LegalShell({
 }) {
   return (
     <div className="min-h-screen">
+      <BackgroundFX />
       <header className="border-b border-ink-700">
         <div className="max-w-3xl mx-auto px-4 h-16 flex items-center">
           <Link href="/" className="flex items-center">
