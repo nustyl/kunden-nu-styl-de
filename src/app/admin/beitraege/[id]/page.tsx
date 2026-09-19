@@ -64,7 +64,9 @@ export default async function EditPostPage({
   }));
 
   const mediaWithUrls = await Promise.all(
-    (media ?? []).map(async (m) => ({
+    (media ?? [])
+      .filter((m) => !m.r2_key.startsWith("deleted/"))
+      .map(async (m) => ({
       id: m.id,
       r2_key: m.r2_key,
       type: m.type,

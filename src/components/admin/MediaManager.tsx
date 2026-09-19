@@ -54,7 +54,7 @@ export function MediaManager({
       setJobs((prev) => [...prev, { id: jobId, name: file.name, progress: 0 }]);
 
       try {
-        const { key, type } = await uploadFileToR2(file, { postId, clientId }, (progress) =>
+        const { key, type, size, mimeType } = await uploadFileToR2(file, { postId, clientId }, (progress) =>
           updateJob(jobId, { progress })
         );
 
@@ -64,8 +64,8 @@ export function MediaManager({
             post_id: postId,
             r2_key: key,
             type,
-            mime_type: file.type,
-            size: file.size,
+            mime_type: mimeType,
+            size,
             sort_order: media.length,
           })
           .select()

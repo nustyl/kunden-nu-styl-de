@@ -3,6 +3,42 @@ import type { MediaType } from "@/types/database";
 const SINGLE_PUT_LIMIT = 20 * 1024 * 1024; // 20 MB
 const PART_SIZE = 8 * 1024 * 1024; // 8 MB pro Multipart-Part
 
+const MAX_IMAGE_EDGE = 2160;
+const JPEG_QUALITY = 0.85;
+const COMPRESSIBLE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+// Verkleinert große Bilder (max. 2160 px lange Kante, JPEG 85 %). Fällt still
+// auf die Originaldatei zurück, wenn der Browser das Bild nicht verarbeiten
+// kann oder das Ergebnis nicht kleiner wäre (z. B. HEIC, kleine JPEGs).
+async function compressImage(file: File): Promise<File> {
+  if (!COMPRESSIBLE_TYPES.has(file.type)) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.round(bitmap.width * scale);
+    const height = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      bitmap.close();
+      return file;
+    }
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY)
+    );
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 export interface UploadTarget {
   postId: string;
   clientId: string;
@@ -107,12 +143,15 @@ async function uploadMultipart(
   return { key: key as string, type: type as MediaType };
 }
 
-export function uploadFileToR2(
-  file: File,
+export async function uploadFileToR2(
+  original: File,
   target: UploadTarget,
   onProgress: (percent: number) => void
 ) {
-  return file.size > SINGLE_PUT_LIMIT
-    ? uploadMultipart(file, target, onProgress)
-    : uploadSingle(file, target, onProgress);
+  const file = await compressImage(original);
+  const result =
+    file.size > SINGLE_PUT_LIMIT
+      ? await uploadMultipart(file, target, onProgress)
+      : await uploadSingle(file, target, onProgress);
+  return { ...result, size: file.size, mimeType: file.type };
 }

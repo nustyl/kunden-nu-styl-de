@@ -72,7 +72,7 @@ export function NewPostForm({
     let failed = 0;
     for (const [index, item] of queue.entries()) {
       try {
-        const { key, type } = await uploadFileToR2(
+        const { key, type, size, mimeType } = await uploadFileToR2(
           item.file,
           { postId: created.id, clientId: created.clientId },
           (progress) => patchFile(item.id, { progress })
@@ -81,8 +81,8 @@ export function NewPostForm({
           post_id: created.id,
           r2_key: key,
           type,
-          mime_type: item.file.type,
-          size: item.file.size,
+          mime_type: mimeType,
+          size,
           sort_order: index,
         });
         if (insertError) throw new Error(insertError.message);

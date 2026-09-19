@@ -9,6 +9,7 @@ import {
   archiveClient,
   unarchiveClient,
   deleteClientHard,
+  deletePublishedMedia,
 } from "@/lib/actions/admin";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
@@ -16,7 +17,7 @@ import { ConfirmForm } from "@/components/admin/ConfirmForm";
 import { InvitePersonForm } from "@/components/admin/InvitePersonForm";
 import { RoundsFormatField } from "@/components/admin/RoundsFormatField";
 import { inputClass, labelClass, cardClass } from "@/lib/ui-classes";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatFileSize } from "@/lib/format";
 import { REVISION_ROUNDS_FORMAT_LABELS, type RevisionRoundsFormat } from "@/types/database";
 
 export default async function ClientDetailPage({
@@ -50,12 +51,26 @@ export default async function ClientDetailPage({
     .eq("client_id", id)
     .order("publish_date", { ascending: false });
 
+  const postIds = (posts ?? []).map((p) => p.id);
+  const { data: mediaRows } =
+    postIds.length > 0
+      ? await supabase.from("post_media").select("post_id, size, r2_key").in("post_id", postIds)
+      : { data: [] as { post_id: string; size: number | null; r2_key: string }[] };
+  const publishedIds = new Set(
+    (posts ?? []).filter((p) => p.status === "veroeffentlicht").map((p) => p.id)
+  );
+  const liveMedia = (mediaRows ?? []).filter((m) => !m.r2_key.startsWith("deleted/"));
+  const totalBytes = liveMedia.reduce((sum, m) => sum + (m.size ?? 0), 0);
+  const publishedMedia = liveMedia.filter((m) => publishedIds.has(m.post_id));
+  const publishedBytes = publishedMedia.reduce((sum, m) => sum + (m.size ?? 0), 0);
+
   const updateAction = updateClientCompany.bind(null, id);
   const inviteAction = inviteClientUser.bind(null, id);
   const revokeAction = revokeClientUser.bind(null, id);
   const archiveAction = archiveClient.bind(null, id);
   const unarchiveAction = unarchiveClient.bind(null, id);
   const deleteHardAction = deleteClientHard.bind(null, id);
+  const deleteMediaAction = deletePublishedMedia.bind(null, id);
 
   return (
     <div className="grid gap-8 max-w-3xl">
@@ -184,6 +199,41 @@ export default async function ClientDetailPage({
               </Link>
             ))}
           </div>
+        )}
+      </section>
+
+      <section className={`${cardClass} grid gap-3`}>
+        <h2 className="font-display font-semibold">Speicher</h2>
+        <p className="text-sm text-ink-300">
+          Dateien dieses Kunden: <strong className="text-paper">{formatFileSize(totalBytes)}</strong>
+          {publishedMedia.length > 0 && (
+            <>
+              {" "}
+              · davon von veröffentlichten Beiträgen:{" "}
+              <strong className="text-paper">{formatFileSize(publishedBytes)}</strong> (
+              {publishedMedia.length} {publishedMedia.length === 1 ? "Datei" : "Dateien"})
+            </>
+          )}
+        </p>
+        {publishedMedia.length > 0 ? (
+          <>
+            <ConfirmForm
+              action={deleteMediaAction}
+              confirmMessage={`Alle Dateien der veröffentlichten Beiträge von "${client.name}" (${formatFileSize(publishedBytes)}) wirklich löschen? Beiträge und Kommentare bleiben erhalten, die Dateien sind danach weg.`}
+              className="justify-self-start"
+            >
+              <Button variant="ghost" type="submit">
+                Medien veröffentlichter Beiträge löschen
+              </Button>
+            </ConfirmForm>
+            <p className="text-xs text-ink-400">
+              Beiträge, Kommentare und Verlauf bleiben erhalten, nur die Dateien werden entfernt.
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-ink-400">
+            Keine Dateien von veröffentlichten Beiträgen vorhanden.
+          </p>
         )}
       </section>
 

@@ -193,6 +193,47 @@ export async function deleteClientHard(clientId: string) {
   redirect("/admin/kunden");
 }
 
+// Speicher sparen: löscht die Dateien aller VERÖFFENTLICHTEN Beiträge eines
+// Kunden aus R2. Beiträge, Kommentare und Verlauf bleiben erhalten.
+export async function deletePublishedMedia(clientId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: posts } = await admin
+    .from("posts")
+    .select("id")
+    .eq("client_id", clientId)
+    .eq("status", "veroeffentlicht");
+  const postIds = (posts ?? []).map((p) => p.id);
+  if (postIds.length === 0) return;
+
+  const { data: media } = await admin
+    .from("post_media")
+    .select("id, r2_key")
+    .in("post_id", postIds);
+
+  const live = (media ?? []).filter((m) => m.r2_key && !m.r2_key.startsWith("deleted/"));
+
+  for (let i = 0; i < live.length; i += 1000) {
+    const batch = live.slice(i, i + 1000);
+    await r2.send(
+      new DeleteObjectsCommand({
+        Bucket: R2_BUCKET,
+        Delete: { Objects: batch.map((m) => ({ Key: m.r2_key })) },
+      })
+    );
+  }
+
+  await Promise.all(
+    live.map((m) =>
+      admin.from("post_media").update({ r2_key: `deleted/${m.id}` }).eq("id", m.id)
+    )
+  );
+
+  revalidatePath(`/admin/kunden/${clientId}`);
+  revalidatePath("/admin");
+}
+
 // -------------------------------------------------------------------
 // Beiträge
 // -------------------------------------------------------------------
