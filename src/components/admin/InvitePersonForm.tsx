@@ -7,10 +7,11 @@ import { inputClass, labelClass } from "@/lib/ui-classes";
 export function InvitePersonForm({
   action,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<{ ok: true } | { ok: false; error: string }>;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!open) {
     return (
@@ -29,9 +30,16 @@ export function InvitePersonForm({
     <form
       action={async (formData) => {
         setPending(true);
-        await action(formData);
-        setPending(false);
-        setOpen(false);
+        setError(null);
+        try {
+          const result = await action(formData);
+          if (result.ok) setOpen(false);
+          else setError(result.error);
+        } catch {
+          setError("Einladung fehlgeschlagen. Bitte erneut versuchen.");
+        } finally {
+          setPending(false);
+        }
       }}
       className="grid sm:grid-cols-[1fr_1fr_auto] gap-3 sm:items-end w-full"
     >
@@ -50,6 +58,7 @@ export function InvitePersonForm({
       <Button type="submit" variant="primary" disabled={pending}>
         {pending ? "Sende…" : "Einladen"}
       </Button>
+      {error && <p className="text-sm text-red-400 sm:col-span-3">{error}</p>}
     </form>
   );
 }

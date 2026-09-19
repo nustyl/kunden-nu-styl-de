@@ -7,12 +7,32 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error" | "signingIn">("idle");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fromQuery = new URLSearchParams(window.location.search);
     const fromHash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+
+    // Einladungs-Links von Supabase liefern die Sitzung als #access_token=… im
+    // Link (kein ?code=). Hier daraus eine Sitzung machen.
+    const accessToken = fromHash.get("access_token");
+    const refreshToken = fromHash.get("refresh_token");
+    if (accessToken && refreshToken) {
+      setStatus("signingIn");
+      createClient()
+        .auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error: sessionError }) => {
+          if (sessionError) {
+            setStatus("error");
+            setError(`Anmeldung fehlgeschlagen: ${sessionError.message}`);
+            return;
+          }
+          window.location.replace("/");
+        });
+      return;
+    }
+
     const message =
       fromQuery.get("error") ??
       fromHash.get("error_description") ??
@@ -59,7 +79,9 @@ export default function LoginPage() {
             Gib deine E-Mail-Adresse ein, du bekommst einen Anmeldelink.
           </p>
 
-          {status === "sent" ? (
+          {status === "signingIn" ? (
+            <p className="text-sm text-ink-300">Du wirst angemeldet…</p>
+          ) : status === "sent" ? (
             <div className="rounded-sm border border-green-800 bg-green-950/40 text-green-400 text-sm p-4">
               Check dein Postfach — wir haben dir einen Link geschickt. Er
               ist ca. 1 Stunde gültig.

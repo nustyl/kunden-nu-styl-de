@@ -72,11 +72,13 @@ export async function updateClientCompany(clientId: string, formData: FormData) 
   revalidatePath("/admin/kunden");
 }
 
-export async function inviteClientUser(clientId: string, formData: FormData) {
+export type InviteResult = { ok: true } | { ok: false; error: string };
+
+export async function inviteClientUser(clientId: string, formData: FormData): Promise<InviteResult> {
   await requireAdmin();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const fullName = String(formData.get("full_name") ?? "").trim();
-  if (!email) throw new Error("E-Mail ist erforderlich");
+  if (!email) return { ok: false, error: "Bitte eine E-Mail-Adresse eingeben." };
 
   const admin = createAdminClient();
   const { error } = await admin.auth.admin.inviteUserByEmail(email, {
@@ -84,8 +86,23 @@ export async function inviteClientUser(clientId: string, formData: FormData) {
     data: { client_id: clientId, full_name: fullName || null, role: "client" },
   });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "email_exists" || /already (been )?registered/i.test(error.message)) {
+      return {
+        ok: false,
+        error:
+          "Diese E-Mail-Adresse ist bereits registriert (auch Admin-Konten zählen). Eine Person kann nur einem Kunden zugeordnet sein. Nutze für Tests eine andere Adresse.",
+      };
+    }
+    if (code === "over_email_send_rate_limit" || /rate limit/i.test(error.message)) {
+      return { ok: false, error: "Zu viele E-Mails in kurzer Zeit. Bitte in ein paar Minuten erneut versuchen." };
+    }
+    return { ok: false, error: `Einladung fehlgeschlagen: ${error.message}` };
+  }
+
   revalidatePath(`/admin/kunden/${clientId}`);
+  return { ok: true };
 }
 
 // Einzelne Person wieder entfernen (Zugang + Profil, Beiträge/Kommentare
