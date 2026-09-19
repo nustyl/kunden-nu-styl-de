@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmForm } from "@/components/admin/ConfirmForm";
 import { MediaManager } from "@/components/admin/MediaManager";
 import { CommentThread } from "@/components/portal/CommentThread";
+import { getCurrentProfile } from "@/lib/auth";
 import { GermanDateTimeField } from "@/components/ui/GermanDateTimeField";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { inputClass, labelClass, cardClass } from "@/lib/ui-classes";
@@ -33,6 +34,7 @@ export default async function EditPostPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const session = await getCurrentProfile();
 
   const { data: post } = await supabase
     .from("posts")
@@ -60,9 +62,11 @@ export default async function EditPostPage({
     id: c.id,
     body: c.body,
     created_at: c.created_at,
+    author_id: c.author_id,
     author_name: c.profiles?.full_name ?? "Unbekannt",
     is_admin: c.profiles?.role === "admin",
     categories: c.categories,
+    edited_at: c.edited_at,
   }));
 
   const mediaWithUrls = await Promise.all(
@@ -177,7 +181,7 @@ export default async function EditPostPage({
         <CommentThread
           postId={post.id}
           comments={comments}
-          viewer={{ name: "Luc Picard", isAdmin: true }}
+          viewer={{ id: session?.user.id ?? "", name: "Luc Picard", isAdmin: true }}
         />
       </section>
 

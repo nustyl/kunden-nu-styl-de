@@ -68,9 +68,11 @@ export default async function PostDetailPage({
     id: c.id,
     body: c.body,
     created_at: c.created_at,
+    author_id: c.author_id,
     author_name: c.profiles?.full_name ?? "Unbekannt",
     is_admin: c.profiles?.role === "admin",
     categories: c.categories,
+    edited_at: c.edited_at,
   }));
 
   const canRespond =
@@ -144,6 +146,7 @@ export default async function PostDetailPage({
             format={post.format}
             roundsUsed={post.revision_rounds_used}
             roundsLimit={roundsLimit}
+            slides={validMedia.map((m) => m.type)}
           />
         </div>
       )}
@@ -153,6 +156,7 @@ export default async function PostDetailPage({
           postId={post.id}
           comments={comments}
           viewer={{
+            id: session?.user.id ?? "",
             name: session?.profile.full_name ?? "Ich",
             isAdmin: session?.profile.role === "admin",
           }}

@@ -297,16 +297,6 @@ export async function updatePost(postId: string, formData: FormData) {
   redirect(`/admin/kunden/${updated.client_id}`);
 }
 
-export async function deleteComment(postId: string, commentId: string) {
-  await requireAdmin();
-  const supabase = await createClient();
-  const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("post_id", postId);
-  if (error) throw new Error(error.message);
-  revalidatePath(`/admin/beitraege/${postId}`);
-  revalidatePath(`/beitraege/${postId}`);
-  revalidatePath("/admin");
-}
-
 export async function reuploadNewVersion(postId: string) {
   await requireAdmin();
   const supabase = await createClient();

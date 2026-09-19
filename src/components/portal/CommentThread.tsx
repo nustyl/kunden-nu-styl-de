@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { deleteComment } from "@/lib/actions/admin";
+import { deleteComment, editComment } from "@/lib/actions/comments";
 import { formatDateTime } from "@/lib/format";
 
 interface CommentItem {
   id: string;
   body: string;
   created_at: string;
+  edited_at: string | null;
+  author_id: string;
   author_name: string;
   is_admin: boolean;
   categories: string[] | null;
@@ -17,6 +19,9 @@ interface CommentItem {
 
 const ADMIN_NAME = "Luc Picard";
 const ADMIN_AVATAR = "/luc-picard.jpg";
+
+const textareaClass =
+  "w-full rounded-sm border border-ink-600 bg-ink-900 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500";
 
 function initials(name: string) {
   return (
@@ -59,24 +64,48 @@ export function CommentThread({
 }: {
   postId: string;
   comments: CommentItem[];
-  viewer: { name: string; isAdmin: boolean };
+  viewer: { id: string; name: string; isAdmin: boolean };
 }) {
   const router = useRouter();
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+
+  function startEdit(comment: CommentItem) {
+    setError(null);
+    setEditingId(comment.id);
+    setEditText(comment.body);
+  }
+
+  async function saveEdit(commentId: string) {
+    if (!editText.trim()) return;
+    setBusyId(commentId);
+    setError(null);
+    try {
+      await editComment(postId, commentId, editText);
+      setEditingId(null);
+      router.refresh();
+    } catch {
+      setError("Kommentar konnte nicht gespeichert werden.");
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   async function handleDelete(commentId: string) {
     if (!window.confirm("Diesen Kommentar wirklich löschen?")) return;
-    setDeletingId(commentId);
+    setBusyId(commentId);
+    setError(null);
     try {
       await deleteComment(postId, commentId);
       router.refresh();
     } catch {
       setError("Kommentar konnte nicht gelöscht werden.");
     } finally {
-      setDeletingId(null);
+      setBusyId(null);
     }
   }
 
@@ -110,6 +139,9 @@ export function CommentThread({
         <ul className="grid gap-3">
           {comments.map((c) => {
             const name = c.is_admin ? ADMIN_NAME : c.author_name;
+            const canManage = viewer.isAdmin || c.author_id === viewer.id;
+            const editing = editingId === c.id;
+            const busy = busyId === c.id;
             return (
               <li
                 key={c.id}
@@ -123,15 +155,33 @@ export function CommentThread({
                       <span className="text-xs font-semibold text-orange-400">NU STYL</span>
                     )}
                     <time className="text-xs text-ink-500">· {formatDateTime(c.created_at)}</time>
-                    {viewer.isAdmin && (
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(c.id)}
-                        disabled={deletingId === c.id}
-                        className="ml-auto text-xs text-ink-500 hover:text-red-400 disabled:opacity-50 transition-colors"
+                    {c.edited_at && (
+                      <span
+                        className="text-xs text-ink-500"
+                        title={`Bearbeitet am ${formatDateTime(c.edited_at)}`}
                       >
-                        {deletingId === c.id ? "Lösche…" : "Löschen"}
-                      </button>
+                        · bearbeitet
+                      </span>
+                    )}
+                    {canManage && !editing && (
+                      <span className="ml-auto flex gap-3 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => startEdit(c)}
+                          disabled={busy}
+                          className="text-ink-500 hover:text-paper disabled:opacity-50 transition-colors"
+                        >
+                          Bearbeiten
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(c.id)}
+                          disabled={busy}
+                          className="text-ink-500 hover:text-red-400 disabled:opacity-50 transition-colors"
+                        >
+                          {busy ? "Lösche…" : "Löschen"}
+                        </button>
+                      </span>
                     )}
                   </div>
                   {c.categories && c.categories.length > 0 && (
@@ -146,9 +196,41 @@ export function CommentThread({
                       ))}
                     </div>
                   )}
-                  <p className="mt-1 text-sm text-paper/90 whitespace-pre-wrap break-words">
-                    {c.body}
-                  </p>
+                  {editing ? (
+                    <div className="mt-2 grid gap-2">
+                      <textarea
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        rows={Math.min(10, Math.max(3, editText.split("\n").length + 1))}
+                        className={textareaClass}
+                        autoFocus
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          variant="ghost"
+                          type="button"
+                          onClick={() => setEditingId(null)}
+                          disabled={busy}
+                          className="min-h-[40px] px-5"
+                        >
+                          Abbrechen
+                        </Button>
+                        <Button
+                          variant="primary"
+                          type="button"
+                          onClick={() => saveEdit(c.id)}
+                          disabled={busy || !editText.trim()}
+                          className="min-h-[40px] px-5"
+                        >
+                          {busy ? "Speichere…" : "Speichern"}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-1 text-sm text-paper/90 whitespace-pre-wrap break-words">
+                      {c.body}
+                    </p>
+                  )}
                 </div>
               </li>
             );
@@ -164,7 +246,7 @@ export function CommentThread({
             onChange={(e) => setBody(e.target.value)}
             rows={2}
             placeholder="Kommentar schreiben…"
-            className="w-full rounded-sm border border-ink-600 bg-ink-900 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className={textareaClass}
           />
           {error && <p className="text-sm text-red-400">{error}</p>}
           <Button

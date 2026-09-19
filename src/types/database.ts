@@ -73,6 +73,7 @@ export interface Comment {
   author_id: string;
   body: string;
   categories: string[] | null;
+  edited_at: string | null;
   created_at: string;
 }
 
@@ -142,4 +143,43 @@ export function maxRoundsForFormat(
 // Tailwind braucht die Klassen als vollständige Strings.
 export function mediaAspectClass(format: PostFormat): string {
   return format === "reel" || format === "story" ? "aspect-[9/16]" : "aspect-[3/4]";
+}
+
+// Änderungswünsche pro Slide: Bei Beiträgen mit mehreren Medien (Carousel)
+// gibt es "Allgemein" (Beitrags-weite Punkte) plus je Slide ein eigenes Feld.
+export const CHANGE_CATEGORIES_SLIDE_IMAGE = ["Grafisch", "Inhalt auf Grafik"] as const;
+export const CHANGE_CATEGORIES_SLIDE_VIDEO = [
+  "Schnitt & Bildsprache",
+  "Ton & Musik",
+  "Text im Video",
+] as const;
+export const CHANGE_CATEGORIES_GENERAL = ["Reihenfolge der Slides", "Caption", "Hashtags"] as const;
+
+export interface ChangeSection {
+  key: string;
+  label: string;
+  categories: readonly string[];
+}
+
+export function changeSectionsFor(
+  format: PostFormat,
+  slides: MediaType[]
+): { carousel: boolean; sections: ChangeSection[] } {
+  if (slides.length <= 1) {
+    return {
+      carousel: false,
+      sections: [{ key: "single", label: "Änderungswünsche", categories: changeCategoriesFor(format) }],
+    };
+  }
+  return {
+    carousel: true,
+    sections: [
+      { key: "general", label: "Allgemein", categories: CHANGE_CATEGORIES_GENERAL },
+      ...slides.map((type, i) => ({
+        key: `slide-${i + 1}`,
+        label: `Slide ${i + 1}`,
+        categories: type === "video" ? CHANGE_CATEGORIES_SLIDE_VIDEO : CHANGE_CATEGORIES_SLIDE_IMAGE,
+      })),
+    ],
+  };
 }
