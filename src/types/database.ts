@@ -137,3 +137,9 @@ export function maxRoundsForFormat(
   if (key in overrides) return overrides[key] ?? null;
   return client.max_revision_rounds;
 }
+
+// Reels & Stories sind immer 9:16, Beiträge & Karussells immer 3:4.
+// Tailwind braucht die Klassen als vollständige Strings.
+export function mediaAspectClass(format: PostFormat): string {
+  return format === "reel" || format === "story" ? "aspect-[9/16]" : "aspect-[3/4]";
+}

@@ -55,8 +55,3 @@ h4 {
   outline-offset: 2px;
 }
 
-/* Video-Player im 9:16 Format, Poster bis zum Klick */
-.video-frame {
-  aspect-ratio: 9 / 16;
-  background: #000;
-}

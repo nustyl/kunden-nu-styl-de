@@ -1,14 +1,16 @@
 import { LazyVideo } from "./LazyVideo";
+import { mediaAspectClass, type PostFormat } from "@/types/database";
 
 interface MediaItem {
   url: string;
   type: "image" | "video";
 }
 
-export function MediaViewer({ items }: { items: MediaItem[] }) {
+export function MediaViewer({ items, format }: { items: MediaItem[]; format: PostFormat }) {
+  const aspect = mediaAspectClass(format);
   if (items.length === 0) {
     return (
-      <div className="video-frame w-full max-w-[300px] mx-auto rounded-md bg-ink-800 flex items-center justify-center text-ink-500 text-sm">
+      <div className={`${aspect} w-full max-w-[300px] mx-auto rounded-md bg-ink-800 flex items-center justify-center text-ink-500 text-sm`}>
         Kein Medium
       </div>
     );
@@ -17,7 +19,7 @@ export function MediaViewer({ items }: { items: MediaItem[] }) {
   if (items.length === 1 && items[0]) {
     const item = items[0];
     return (
-      <div className="video-frame w-full max-w-[300px] mx-auto rounded-md overflow-hidden">
+      <div className={`${aspect} bg-black w-full max-w-[300px] mx-auto rounded-md overflow-hidden`}>
         {item.type === "video" ? (
           <LazyVideo src={item.url} />
         ) : (
@@ -33,7 +35,7 @@ export function MediaViewer({ items }: { items: MediaItem[] }) {
       {items.map((item, i) => (
         <div
           key={i}
-          className="video-frame flex-none w-[220px] snap-center rounded-md overflow-hidden"
+          className={`${aspect} bg-black flex-none w-[220px] snap-center rounded-md overflow-hidden`}
         >
           {item.type === "video" ? (
             <LazyVideo src={item.url} />

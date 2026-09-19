@@ -1,5 +1,5 @@
 import { createClientCompany } from "@/lib/actions/admin";
-import { Button } from "@/components/ui/Button";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { inputClass, labelClass, cardClass } from "@/lib/ui-classes";
 
 export default function NewClientPage() {
@@ -13,9 +13,9 @@ export default function NewClientPage() {
           </label>
           <input id="name" name="name" required className={inputClass} />
         </div>
-        <Button type="submit" variant="primary" className="justify-self-start">
+        <SubmitButton pendingLabel="Wird angelegt…" className="justify-self-start">
           Anlegen
-        </Button>
+        </SubmitButton>
       </form>
     </div>
   );

@@ -131,7 +131,12 @@ export default async function EditPostPage({
 
       <section className="grid gap-3">
         <h2 className="font-display font-semibold">Medien</h2>
-        <MediaManager postId={post.id} clientId={client.id} initialMedia={mediaWithUrls} />
+        <MediaManager
+          postId={post.id}
+          clientId={client.id}
+          format={post.format}
+          initialMedia={mediaWithUrls}
+        />
         {post.status === "aenderung_gewuenscht" && (
           <form action={reuploadAction}>
             <Button variant="ghost" type="submit">

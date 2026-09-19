@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
 import { r2, R2_BUCKET } from "@/lib/r2/client";
+import { berlinLocalToISO } from "@/lib/format";
 import type { PostFormat, PostStatus } from "@/types/database";
 
 // -------------------------------------------------------------------
@@ -18,6 +19,18 @@ export async function createClientCompany(formData: FormData) {
   if (!name) throw new Error("Name ist erforderlich");
 
   const supabase = await createClient();
+
+  // Doppelklick / erneutes Absenden: bestehenden Kunden gleichen Namens wiederverwenden.
+  const { data: existing } = await supabase
+    .from("clients")
+    .select("id")
+    .ilike("name", name)
+    .limit(1)
+    .maybeSingle();
+  if (existing) {
+    redirect(`/admin/kunden/${existing.id}`);
+  }
+
   const { data, error } = await supabase
     .from("clients")
     .insert({ name })
@@ -187,7 +200,7 @@ function parsePlatforms(formData: FormData): string[] {
   return formData.getAll("platforms").map(String);
 }
 
-export async function createPost(formData: FormData) {
+export async function createPost(formData: FormData): Promise<{ id: string; clientId: string }> {
   await requireAdmin();
   const supabase = await createClient();
 
@@ -198,7 +211,7 @@ export async function createPost(formData: FormData) {
     platforms: parsePlatforms(formData),
     caption: String(formData.get("caption") ?? ""),
     hashtags: String(formData.get("hashtags") ?? ""),
-    publish_date: (formData.get("publish_date") as string) || null,
+    publish_date: berlinLocalToISO(formData.get("publish_date") as string),
     approval_deadline: (formData.get("approval_deadline") as string) || null,
   };
 
@@ -210,7 +223,7 @@ export async function createPost(formData: FormData) {
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin/beitraege");
-  redirect(`/admin/beitraege/${data.id}`);
+  return { id: data.id, clientId: data.client_id };
 }
 
 export async function updatePost(postId: string, formData: FormData) {
@@ -223,7 +236,7 @@ export async function updatePost(postId: string, formData: FormData) {
     platforms: parsePlatforms(formData),
     caption: String(formData.get("caption") ?? ""),
     hashtags: String(formData.get("hashtags") ?? ""),
-    publish_date: (formData.get("publish_date") as string) || null,
+    publish_date: berlinLocalToISO(formData.get("publish_date") as string),
     approval_deadline: (formData.get("approval_deadline") as string) || null,
     status: String(formData.get("status")) as PostStatus,
   };

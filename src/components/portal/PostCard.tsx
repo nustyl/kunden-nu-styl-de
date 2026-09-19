@@ -2,7 +2,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DeadlineBadge } from "@/components/ui/DeadlineBadge";
 import { formatDate } from "@/lib/format";
-import { POST_FORMAT_LABELS, type Post } from "@/types/database";
+import { POST_FORMAT_LABELS, mediaAspectClass, type Post } from "@/types/database";
 
 interface PostCardProps {
   post: Post;
@@ -16,7 +16,7 @@ export function PostCard({ post, thumbUrl, thumbType }: PostCardProps) {
       href={`/beitraege/${post.id}`}
       className="group flex gap-4 rounded-md border border-ink-700 bg-ink-800 p-3 hover:border-ink-600 transition-colors"
     >
-      <div className="w-20 aspect-[9/16] flex-none rounded-sm overflow-hidden bg-ink-900">
+      <div className={`w-20 ${mediaAspectClass(post.format)} flex-none rounded-sm overflow-hidden bg-ink-900`}>
         {thumbUrl ? (
           thumbType === "video" ? (
             // Kein <video> im Listen-Grid — sonst laden 5+ Videos gleichzeitig.

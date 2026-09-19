@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatFileSize } from "@/lib/format";
-import type { MediaType } from "@/types/database";
+import { uploadFileToR2 } from "@/lib/r2/upload-client";
+import { mediaAspectClass, type MediaType, type PostFormat } from "@/types/database";
 
 interface MediaItem {
   id: string;
@@ -22,16 +23,15 @@ interface UploadJob {
   error?: string;
 }
 
-const SINGLE_PUT_LIMIT = 20 * 1024 * 1024; // 20 MB
-const PART_SIZE = 8 * 1024 * 1024; // 8 MB pro Multipart-Part
-
 export function MediaManager({
   postId,
   clientId,
+  format,
   initialMedia,
 }: {
   postId: string;
   clientId: string;
+  format: PostFormat;
   initialMedia: MediaItem[];
 }) {
   const router = useRouter();
@@ -47,106 +47,6 @@ export function MediaManager({
     setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, ...patch } : j)));
   }
 
-  async function uploadSingle(file: File, jobId: string) {
-    const res = await fetch("/api/r2/presign-upload", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        postId,
-        clientId,
-        filename: file.name,
-        mimeType: file.type,
-        size: file.size,
-      }),
-    });
-    if (!res.ok) throw new Error((await res.json()).error ?? "Presign fehlgeschlagen");
-    const { url, key, type } = await res.json();
-
-    await new Promise<void>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("PUT", url);
-      xhr.setRequestHeader("Content-Type", file.type);
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) updateJob(jobId, { progress: (e.loaded / e.total) * 100 });
-      };
-      xhr.onload = () => (xhr.status < 300 ? resolve() : reject(new Error("Upload fehlgeschlagen")));
-      xhr.onerror = () => reject(new Error("Upload fehlgeschlagen"));
-      xhr.send(file);
-    });
-
-    return { key, type: type as MediaType };
-  }
-
-  async function uploadMultipart(file: File, jobId: string) {
-    const createRes = await fetch("/api/r2/presign-multipart", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "create",
-        postId,
-        clientId,
-        filename: file.name,
-        mimeType: file.type,
-      }),
-    });
-    if (!createRes.ok) throw new Error((await createRes.json()).error ?? "Presign fehlgeschlagen");
-    const { key, uploadId, type } = await createRes.json();
-
-    const partCount = Math.ceil(file.size / PART_SIZE);
-    const parts: { ETag: string; PartNumber: number }[] = [];
-
-    try {
-      for (let i = 0; i < partCount; i++) {
-        const partNumber = i + 1;
-        const start = i * PART_SIZE;
-        const chunk = file.slice(start, start + PART_SIZE);
-
-        const signRes = await fetch("/api/r2/presign-multipart", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "sign-part", key, uploadId, partNumber }),
-        });
-        if (!signRes.ok) throw new Error("Presign (Part) fehlgeschlagen");
-        const { url } = await signRes.json();
-
-        const etag = await new Promise<string>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
-          xhr.open("PUT", url);
-          xhr.upload.onprogress = (e) => {
-            if (e.lengthComputable) {
-              const doneBytes = start + e.loaded;
-              updateJob(jobId, { progress: (doneBytes / file.size) * 100 });
-            }
-          };
-          xhr.onload = () => {
-            if (xhr.status < 300) resolve(xhr.getResponseHeader("ETag") ?? "");
-            else reject(new Error("Upload fehlgeschlagen"));
-          };
-          xhr.onerror = () => reject(new Error("Upload fehlgeschlagen"));
-          xhr.send(chunk);
-        });
-
-        parts.push({ ETag: etag, PartNumber: partNumber });
-      }
-
-      const completeRes = await fetch("/api/r2/presign-multipart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "complete", key, uploadId, parts }),
-      });
-      if (!completeRes.ok) throw new Error("Zusammenführen fehlgeschlagen");
-    } catch (err) {
-      await fetch("/api/r2/presign-multipart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "abort", key, uploadId }),
-      }).catch(() => {});
-      throw err;
-    }
-
-    return { key, type: type as MediaType };
-  }
-
   async function handleFiles(fileList: FileList) {
     const files = Array.from(fileList);
     for (const file of files) {
@@ -154,10 +54,9 @@ export function MediaManager({
       setJobs((prev) => [...prev, { id: jobId, name: file.name, progress: 0 }]);
 
       try {
-        const { key, type } =
-          file.size > SINGLE_PUT_LIMIT
-            ? await uploadMultipart(file, jobId)
-            : await uploadSingle(file, jobId);
+        const { key, type } = await uploadFileToR2(file, { postId, clientId }, (progress) =>
+          updateJob(jobId, { progress })
+        );
 
         const { data: inserted, error } = await supabase
           .from("post_media")
@@ -270,7 +169,7 @@ export function MediaManager({
               onDragStart={() => setDragIndex(i)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(i)}
-              className="relative aspect-[9/16] rounded-sm overflow-hidden border border-ink-700 bg-ink-900 cursor-grab"
+              className={`relative ${mediaAspectClass(format)} rounded-sm overflow-hidden border border-ink-700 bg-ink-900 cursor-grab`}
             >
               {m.url ? (
                 m.type === "video" ? (

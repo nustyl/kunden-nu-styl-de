@@ -114,7 +114,7 @@ export default async function PostDetailPage({
         </div>
       </div>
 
-      <MediaViewer items={validMedia} />
+      <MediaViewer items={validMedia} format={post.format} />
 
       <div className="grid gap-3">
         <div className="flex gap-2 flex-wrap">
