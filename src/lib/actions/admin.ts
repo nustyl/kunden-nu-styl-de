@@ -38,8 +38,12 @@ export async function updateClientCompany(clientId: string, formData: FormData) 
   const roundsRaw = String(formData.get("max_revision_rounds") ?? "").trim();
   const max_revision_rounds = roundsRaw === "" ? null : Number(roundsRaw);
 
-  const max_revision_rounds_by_format: Record<string, number> = {};
+  const max_revision_rounds_by_format: Record<string, number | null> = {};
   for (const key of REVISION_ROUNDS_FORMAT_KEYS) {
+    if (formData.get(`rounds_${key}_unlimited`)) {
+      max_revision_rounds_by_format[key] = null;
+      continue;
+    }
     const raw = String(formData.get(`rounds_${key}`) ?? "").trim();
     if (raw !== "") max_revision_rounds_by_format[key] = Number(raw);
   }

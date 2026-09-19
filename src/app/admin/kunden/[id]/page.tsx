@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ConfirmForm } from "@/components/admin/ConfirmForm";
 import { InvitePersonForm } from "@/components/admin/InvitePersonForm";
+import { RoundsFormatField } from "@/components/admin/RoundsFormatField";
 import { inputClass, labelClass, cardClass } from "@/lib/ui-classes";
 import { formatDate } from "@/lib/format";
 import { REVISION_ROUNDS_FORMAT_LABELS, type RevisionRoundsFormat } from "@/types/database";
@@ -105,20 +106,18 @@ export default async function ClientDetailPage({
             </p>
             <div className="grid sm:grid-cols-3 gap-3">
               {(Object.keys(REVISION_ROUNDS_FORMAT_LABELS) as RevisionRoundsFormat[]).map((key) => (
-                <div key={key}>
-                  <label htmlFor={`rounds_${key}`} className={labelClass}>
-                    {REVISION_ROUNDS_FORMAT_LABELS[key]}
-                  </label>
-                  <input
-                    id={`rounds_${key}`}
-                    name={`rounds_${key}`}
-                    type="number"
-                    min={0}
-                    defaultValue={client.max_revision_rounds_by_format?.[key] ?? ""}
-                    placeholder={`Standard: ${client.max_revision_rounds ?? "∞"}`}
-                    className={inputClass}
-                  />
-                </div>
+                <RoundsFormatField
+                  key={key}
+                  name={`rounds_${key}`}
+                  label={REVISION_ROUNDS_FORMAT_LABELS[key]}
+                  defaultValue={client.max_revision_rounds_by_format?.[key] ?? null}
+                  defaultUnlimited={
+                    !!client.max_revision_rounds_by_format &&
+                    key in client.max_revision_rounds_by_format &&
+                    client.max_revision_rounds_by_format[key] === null
+                  }
+                  placeholder={`Standard: ${client.max_revision_rounds ?? "∞"}`}
+                />
               ))}
             </div>
           </div>
