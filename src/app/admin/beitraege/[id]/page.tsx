@@ -6,6 +6,7 @@ import {
   updatePost,
   deletePost,
   reuploadNewVersion,
+  releasePost,
   grantRevisionException,
   acceptDateProposal,
   rejectDateProposal,
@@ -102,6 +103,7 @@ export default async function EditPostPage({
   const updateAction = updatePost.bind(null, id);
   const deleteAction = deletePost.bind(null, id);
   const reuploadAction = reuploadNewVersion.bind(null, id);
+  const releaseAction = releasePost.bind(null, id);
   const grantExceptionAction = grantRevisionException.bind(null, id);
   const acceptDateAction = acceptDateProposal.bind(null, id);
   const rejectDateAction = rejectDateProposal.bind(null, id);
@@ -174,6 +176,27 @@ export default async function EditPostPage({
               </Button>
             </form>
           </div>
+        </section>
+      )}
+
+      {post.status === "entwurf" && (
+        <section className="rounded-md border border-ink-600 bg-ink-800 p-4 grid gap-3">
+          <div>
+            <h2 className="font-display font-semibold">Entwurf</h2>
+            <p className="text-sm text-ink-300">
+              Dieser Beitrag ist für den Kunden noch unsichtbar. Sobald Medien und Angaben passen,
+              gib ihn zur Freigabe frei.
+            </p>
+          </div>
+          <ConfirmForm
+            action={releaseAction}
+            confirmMessage={`"${post.title}" jetzt für ${client.name} zur Freigabe bereitstellen? Der Kunde kann ihn danach sehen.`}
+            className="justify-self-start"
+          >
+            <Button variant="primary" type="submit">
+              Zur Freigabe senden
+            </Button>
+          </ConfirmForm>
         </section>
       )}
 

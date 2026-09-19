@@ -264,6 +264,16 @@ export function NewPostForm({
         </div>
       </div>
 
+      <div>
+        <label htmlFor="status" className={labelClass}>
+          Status
+        </label>
+        <select id="status" name="status" defaultValue="entwurf" className={inputClass}>
+          <option value="entwurf">Entwurf (für den Kunden noch unsichtbar)</option>
+          <option value="zur_freigabe">Zur Freigabe (Kunde sieht den Beitrag sofort)</option>
+        </select>
+      </div>
+
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="flex items-center gap-3 flex-wrap">

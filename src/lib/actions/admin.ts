@@ -272,6 +272,7 @@ export async function createPost(formData: FormData): Promise<{ id: string; clie
     hashtags: String(formData.get("hashtags") ?? ""),
     publish_date: berlinLocalToISO(formData.get("publish_date") as string),
     approval_deadline: (formData.get("approval_deadline") as string) || null,
+    status: (formData.get("status") === "zur_freigabe" ? "zur_freigabe" : "entwurf") as PostStatus,
   };
 
   if (!payload.client_id || !payload.title) {
@@ -313,6 +314,26 @@ export async function updatePost(postId: string, formData: FormData) {
   revalidatePath("/admin/beitraege");
   revalidatePath("/admin");
   redirect(`/admin/kunden/${updated.client_id}`);
+}
+
+// Entwurf für den Kunden sichtbar machen (Status "Zur Freigabe").
+export async function releasePost(postId: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data: post, error } = await supabase
+    .from("posts")
+    .update({ status: "zur_freigabe" })
+    .eq("id", postId)
+    .eq("status", "entwurf")
+    .select("client_id")
+    .single();
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/beitraege/${postId}`);
+  revalidatePath(`/admin/kunden/${post.client_id}`);
+  revalidatePath("/admin/beitraege");
+  revalidatePath("/admin");
+  redirect(`/admin/kunden/${post.client_id}`);
 }
 
 // Überarbeitung fertig: neue Version, Status zurück auf "Zur Freigabe" und
