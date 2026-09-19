@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { PostCard } from "@/components/portal/PostCard";
 import { PostsTable } from "@/components/portal/PostsTable";
+import { StatusFilterSelect } from "@/components/portal/StatusFilterSelect";
 import { ViewToggle } from "@/components/ui/ViewToggle";
 import { POST_STATUS_LABELS, type Post, type PostStatus } from "@/types/database";
 
@@ -36,13 +36,11 @@ export function PortalOverview({
 }) {
   const openCount = counts.zur_freigabe ?? 0;
 
-  function hrefFor(filter: PostStatus | "alle") {
-    const params = new URLSearchParams();
-    if (filter !== "alle") params.set("status", filter);
-    if (activeView === "tabelle") params.set("view", "tabelle");
-    const qs = params.toString();
-    return qs ? `/?${qs}` : "/";
-  }
+  const filterOptions = PORTAL_FILTERS.map((f) => ({
+    value: f,
+    label: f === "alle" ? "Alle" : POST_STATUS_LABELS[f],
+    count: f === "alle" ? total : (counts[f] ?? 0),
+  }));
 
   return (
     <div className="grid gap-10">
@@ -62,35 +60,15 @@ export function PortalOverview({
               : "Aktuell wartet nichts auf deine Freigabe."}
           </p>
         </div>
-        <ViewToggle
-          view={activeView}
-          baseHref="/"
-          otherParams={activeFilter !== "alle" ? { status: activeFilter } : undefined}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <StatusFilterSelect options={filterOptions} value={activeFilter} activeView={activeView} />
+          <ViewToggle
+            view={activeView}
+            baseHref="/"
+            otherParams={activeFilter !== "alle" ? { status: activeFilter } : undefined}
+          />
+        </div>
       </div>
-
-      <nav className="-mt-2 flex flex-wrap gap-x-7 gap-y-1 border-b border-ink-700">
-        {PORTAL_FILTERS.map((f) => {
-          const count = f === "alle" ? total : (counts[f] ?? 0);
-          const active = activeFilter === f;
-          return (
-            <Link
-              key={f}
-              href={hrefFor(f)}
-              className={`-mb-px border-b-2 pb-3 text-base transition-colors ${
-                active
-                  ? "border-orange-500 font-medium text-paper"
-                  : "border-transparent text-ink-300 hover:text-paper"
-              }`}
-            >
-              {f === "alle" ? "Alle" : POST_STATUS_LABELS[f]}
-              <span className={`ml-1.5 text-sm ${active ? "text-orange-400" : "text-ink-500"}`}>
-                {count}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
 
       {posts.length === 0 ? (
         <div className="rounded-md border border-ink-700 bg-ink-800 p-12 text-center text-lg text-ink-300">
