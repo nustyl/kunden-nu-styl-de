@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { uploadFileToR2 } from "@/lib/r2/upload-client";
 import { formatFileSize } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
+import { GermanDateTimeField } from "@/components/ui/GermanDateTimeField";
 import { inputClass, labelClass, cardClass } from "@/lib/ui-classes";
 import { PLATFORMS, mediaAspectClass, type PostFormat } from "@/types/database";
 
@@ -253,13 +254,13 @@ export function NewPostForm({
           <label htmlFor="publish_date" className={labelClass}>
             Posting-Datum &amp; -Zeit
           </label>
-          <input type="datetime-local" id="publish_date" name="publish_date" className={inputClass} />
+          <GermanDateTimeField id="publish_date" name="publish_date" />
         </div>
         <div>
           <label htmlFor="approval_deadline" className={labelClass}>
             Freigabe bis
           </label>
-          <input type="date" id="approval_deadline" name="approval_deadline" className={inputClass} />
+          <GermanDateTimeField id="approval_deadline" name="approval_deadline" withTime={false} />
         </div>
       </div>
 

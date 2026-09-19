@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmForm } from "@/components/admin/ConfirmForm";
 import { MediaManager } from "@/components/admin/MediaManager";
 import { CommentThread } from "@/components/portal/CommentThread";
+import { GermanDateTimeField } from "@/components/ui/GermanDateTimeField";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { inputClass, labelClass, cardClass } from "@/lib/ui-classes";
 import { toDateTimeLocalValue, formatDateTime } from "@/lib/format";
 import {
@@ -259,31 +261,28 @@ export default async function EditPostPage({
             <label htmlFor="publish_date" className={labelClass}>
               Posting-Datum &amp; -Zeit
             </label>
-            <input
-              type="datetime-local"
+            <GermanDateTimeField
               id="publish_date"
               name="publish_date"
               defaultValue={toDateTimeLocalValue(post.publish_date)}
-              className={inputClass}
             />
           </div>
           <div>
             <label htmlFor="approval_deadline" className={labelClass}>
               Freigabe bis
             </label>
-            <input
-              type="date"
+            <GermanDateTimeField
               id="approval_deadline"
               name="approval_deadline"
               defaultValue={post.approval_deadline ?? ""}
-              className={inputClass}
+              withTime={false}
             />
           </div>
         </div>
 
-        <Button type="submit" variant="primary" className="justify-self-start">
+        <SubmitButton pendingLabel="Wird gespeichert…" className="justify-self-start">
           Speichern
-        </Button>
+        </SubmitButton>
       </form>
 
       <ConfirmForm

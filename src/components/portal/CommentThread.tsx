@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { deleteComment } from "@/lib/actions/admin";
 import { formatDateTime } from "@/lib/format";
 
 interface CommentItem {
@@ -64,6 +65,20 @@ export function CommentThread({
   const [body, setBody] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function handleDelete(commentId: string) {
+    if (!window.confirm("Diesen Kommentar wirklich löschen?")) return;
+    setDeletingId(commentId);
+    try {
+      await deleteComment(postId, commentId);
+      router.refresh();
+    } catch {
+      setError("Kommentar konnte nicht gelöscht werden.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -108,6 +123,16 @@ export function CommentThread({
                       <span className="text-xs font-semibold text-orange-400">NU STYL</span>
                     )}
                     <time className="text-xs text-ink-500">· {formatDateTime(c.created_at)}</time>
+                    {viewer.isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(c.id)}
+                        disabled={deletingId === c.id}
+                        className="ml-auto text-xs text-ink-500 hover:text-red-400 disabled:opacity-50 transition-colors"
+                      >
+                        {deletingId === c.id ? "Lösche…" : "Löschen"}
+                      </button>
+                    )}
                   </div>
                   {c.categories && c.categories.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mt-1.5">

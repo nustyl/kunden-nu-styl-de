@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { GermanDateTimeField } from "@/components/ui/GermanDateTimeField";
 import { toDateTimeLocalValue } from "@/lib/format";
 
 export function DateProposalForm({
@@ -14,7 +15,7 @@ export function DateProposalForm({
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState(toDateTimeLocalValue(currentDate));
+  const [value, setValue] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,12 +54,10 @@ export function DateProposalForm({
       <label htmlFor="proposed-date" className="text-xs font-medium">
         Neuer Wunschtermin
       </label>
-      <input
+      <GermanDateTimeField
         id="proposed-date"
-        type="datetime-local"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        className="min-h-[44px] px-3 rounded-sm border border-ink-600 bg-ink-900 text-sm text-paper focus:outline-none focus:ring-2 focus:ring-orange-500"
+        defaultValue={toDateTimeLocalValue(currentDate)}
+        onValueChange={setValue}
       />
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex gap-2">

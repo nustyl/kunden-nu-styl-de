@@ -282,11 +282,28 @@ export async function updatePost(postId: string, formData: FormData) {
     status: String(formData.get("status")) as PostStatus,
   };
 
-  const { error } = await supabase.from("posts").update(payload).eq("id", postId);
+  const { data: updated, error } = await supabase
+    .from("posts")
+    .update(payload)
+    .eq("id", postId)
+    .select("client_id")
+    .single();
   if (error) throw new Error(error.message);
 
   revalidatePath(`/admin/beitraege/${postId}`);
+  revalidatePath(`/admin/kunden/${updated.client_id}`);
   revalidatePath("/admin/beitraege");
+  revalidatePath("/admin");
+  redirect(`/admin/kunden/${updated.client_id}`);
+}
+
+export async function deleteComment(postId: string, commentId: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase.from("comments").delete().eq("id", commentId).eq("post_id", postId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/beitraege/${postId}`);
+  revalidatePath(`/beitraege/${postId}`);
   revalidatePath("/admin");
 }
 
