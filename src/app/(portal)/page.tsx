@@ -78,7 +78,7 @@ export default async function PortalHomePage({
         />
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <Link
             key={f}
@@ -89,7 +89,7 @@ export default async function PortalHomePage({
                   : "/"
                 : `/?status=${f}${activeView === "tabelle" ? "&view=tabelle" : ""}`
             }
-            className={`flex-none px-4 py-2 rounded-full text-sm border transition-colors ${
+            className={`flex-none px-3 py-2 rounded-full text-sm border transition-colors ${
               activeFilter === f
                 ? "bg-orange-600 border-orange-600 text-white"
                 : "border-ink-600 text-ink-300 hover:text-paper"
