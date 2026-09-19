@@ -154,6 +154,7 @@ export default async function PostDetailPage({
             roundsUsed={post.revision_rounds_used}
             roundsLimit={roundsLimit}
             slides={validMedia.map((m) => m.type)}
+            status={post.status}
           />
         </div>
       )}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { changeSectionsFor, type MediaType, type PostFormat } from "@/types/database";
+import { changeSectionsFor, type MediaType, type PostFormat, type PostStatus } from "@/types/database";
 
 interface ApprovalActionsProps {
   postId: string;
@@ -11,6 +11,7 @@ interface ApprovalActionsProps {
   roundsUsed: number;
   roundsLimit: number | null; // effektives Limit (Kunde + Admin-Bonus), null = unbegrenzt
   slides: MediaType[]; // Medientyp je Slide, in Anzeige-Reihenfolge
+  status: PostStatus;
 }
 
 const BILLING_NOTICE = (formatLabel: string) =>
@@ -29,12 +30,16 @@ export function ApprovalActions({
   roundsUsed,
   roundsLimit,
   slides,
+  status,
 }: ApprovalActionsProps) {
   const router = useRouter();
   const [mode, setMode] = useState<"idle" | "change" | "defer">("idle");
   const [categoryTexts, setCategoryTexts] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Änderungswünsche liegen bei NU STYL: keine Freigabe / neue Runde, nur Ergänzen.
+  const locked = status === "aenderung_gewuenscht";
 
   const roundsLeft = roundsLimit === null ? null : Math.max(0, roundsLimit - roundsUsed);
   const hasRoundsLeft = roundsLeft === null || roundsLeft > 0;
@@ -84,6 +89,25 @@ export function ApprovalActions({
     router.refresh();
   }
 
+  async function submitSupplement() {
+    setLoading(true);
+    setError(null);
+    const res = await fetch("/api/comments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId, body: combinedComment, categories: filledCategories }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Etwas ist schiefgelaufen.");
+      return;
+    }
+    setMode("idle");
+    setCategoryTexts({});
+    router.refresh();
+  }
+
   const roundsInfo = (
     <p className="text-xs text-ink-400">
       Änderungsrunden: {roundsUsed} von {roundsLimit === null ? "∞" : roundsLimit} genutzt
@@ -96,6 +120,11 @@ export function ApprovalActions({
       <div className="grid gap-4 rounded-md border border-ink-700 bg-ink-800 p-4">
         {roundsInfo}
         <div className="grid gap-3">
+          {locked && (
+            <p className="text-xs text-orange-300">
+              Etwas vergessen? Ergänze es hier. Das zählt nicht als neue Änderungsrunde.
+            </p>
+          )}
           {carousel && <h3 className="font-display font-semibold">Änderungswünsche</h3>}
           <p className="text-xs text-ink-400">
             {carousel
@@ -152,9 +181,9 @@ export function ApprovalActions({
           <Button
             variant="primary"
             disabled={loading || entries.length === 0}
-            onClick={() => submit("aenderung_gewuenscht")}
+            onClick={() => (locked ? submitSupplement() : submit("aenderung_gewuenscht"))}
           >
-            {loading ? "Sende…" : "Änderungswunsch senden"}
+            {loading ? "Sende…" : locked ? "Ergänzung senden" : "Änderungswunsch senden"}
           </Button>
           <Button variant="ghost" onClick={() => setMode("idle")}>
             Abbrechen
@@ -175,6 +204,27 @@ export function ApprovalActions({
           </Button>
           <Button variant="ghost" onClick={() => setMode("idle")}>
             Abbrechen
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (locked) {
+    return (
+      <div className="grid gap-3 rounded-md border border-orange-600 bg-orange-950/20 p-4">
+        <div>
+          <p className="text-sm font-medium">Deine Änderungswünsche werden bearbeitet.</p>
+          <p className="text-xs text-ink-300">
+            Du bekommst eine E-Mail, sobald die Überarbeitung bereit ist. Freigeben oder eine neue
+            Änderungsrunde ist bis dahin nicht möglich.
+          </p>
+        </div>
+        {roundsInfo}
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        <div>
+          <Button variant="ghost" onClick={() => setMode("change")}>
+            Änderungswunsch ergänzen
           </Button>
         </div>
       </div>

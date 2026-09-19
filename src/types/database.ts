@@ -103,7 +103,7 @@ export const POST_STATUS_LABELS: Record<PostStatus, string> = {
 
 // Kategorien für "Änderung gewünscht" — je nach Format unterschiedlich.
 export const CHANGE_CATEGORIES_IMAGE = [
-  "Grafisch",
+  "Design",
   "Inhalt auf Grafik",
   "Caption",
   "Hashtags",
@@ -147,13 +147,13 @@ export function mediaAspectClass(format: PostFormat): string {
 
 // Änderungswünsche pro Slide: Bei Beiträgen mit mehreren Medien (Carousel)
 // gibt es "Allgemein" (Beitrags-weite Punkte) plus je Slide ein eigenes Feld.
-export const CHANGE_CATEGORIES_SLIDE_IMAGE = ["Grafisch", "Inhalt auf Grafik"] as const;
+export const CHANGE_CATEGORIES_SLIDE_IMAGE = ["Design", "Inhalt auf Grafik"] as const;
 export const CHANGE_CATEGORIES_SLIDE_VIDEO = [
   "Schnitt & Bildsprache",
   "Ton & Musik",
   "Text im Video",
 ] as const;
-export const CHANGE_CATEGORIES_GENERAL = ["Reihenfolge der Slides", "Caption", "Hashtags"] as const;
+export const CHANGE_CATEGORIES_GENERAL = ["Caption", "Design", "Hashtags", "Sonstiges"] as const;
 
 export interface ChangeSection {
   key: string;

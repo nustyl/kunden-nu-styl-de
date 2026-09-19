@@ -3,10 +3,16 @@ import { createClient } from "@/lib/supabase/server";
 import { notifyAdmin } from "@/lib/email/resend";
 
 export async function POST(request: Request) {
-  const { postId, body } = await request.json();
+  const { postId, body, categories } = await request.json();
   if (!postId || !body?.trim()) {
     return NextResponse.json({ error: "Fehlende Angaben" }, { status: 400 });
   }
+  const cleanCategories: string[] = Array.isArray(categories)
+    ? categories
+        .filter((c: unknown): c is string => typeof c === "string" && c.trim() !== "")
+        .map((c) => c.trim().slice(0, 100))
+        .slice(0, 40)
+    : [];
 
   const supabase = await createClient();
   const {
@@ -24,7 +30,12 @@ export async function POST(request: Request) {
 
   const { data: comment, error } = await supabase
     .from("comments")
-    .insert({ post_id: postId, author_id: user.id, body: body.trim() })
+    .insert({
+      post_id: postId,
+      author_id: user.id,
+      body: body.trim(),
+      categories: cleanCategories.length > 0 ? cleanCategories : null,
+    })
     .select()
     .single();
 
@@ -41,7 +52,9 @@ export async function POST(request: Request) {
 
     await notifyAdmin(
       `Neuer Kommentar: ${post?.title ?? ""}`,
-      `${profile.full_name ?? "Ein Kunde"} hat zu "${post?.title ?? postId}" kommentiert:\n\n${body}`
+      `${profile.full_name ?? "Ein Kunde"} hat zu "${post?.title ?? postId}" kommentiert:${
+        cleanCategories.length > 0 ? `\nKategorien: ${cleanCategories.join(", ")}` : ""
+      }\n\n${body}`
     );
   }
 
