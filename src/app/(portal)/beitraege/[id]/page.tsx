@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { presignGet } from "@/lib/r2/presign";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { DeadlineBadge } from "@/components/ui/DeadlineBadge";
@@ -49,10 +50,20 @@ export default async function PostDetailPage({
 
   const { data: rawComments } = await supabase
     .from("comments")
-    .select("*, profiles ( full_name, role )")
+    .select("*")
     .eq("post_id", id)
     .order("created_at", { ascending: true })
-    .returns<(Comment & { profiles: Pick<Profile, "full_name" | "role"> | null })[]>();
+    .returns<Comment[]>();
+
+  // Kunden dürfen laut RLS nur ihr eigenes Profil lesen. Name und Rolle der
+  // Kommentar-Autoren (Admin, Kolleg:innen) holen wir daher serverseitig, und
+  // geben nur diese beiden Felder für bereits sichtbare Kommentare weiter.
+  const authorIds = [...new Set((rawComments ?? []).map((c) => c.author_id))];
+  const { data: authors } =
+    authorIds.length > 0
+      ? await createAdminClient().from("profiles").select("id, full_name, role").in("id", authorIds)
+      : { data: [] as Pick<Profile, "id" | "full_name" | "role">[] };
+  const authorById = new Map((authors ?? []).map((a) => [a.id, a]));
 
   const mediaItems = await Promise.all(
     (media ?? []).map(async (m) => ({
@@ -69,8 +80,8 @@ export default async function PostDetailPage({
     body: c.body,
     created_at: c.created_at,
     author_id: c.author_id,
-    author_name: c.profiles?.full_name ?? "Unbekannt",
-    is_admin: c.profiles?.role === "admin",
+    author_name: authorById.get(c.author_id)?.full_name ?? "Unbekannt",
+    is_admin: authorById.get(c.author_id)?.role === "admin",
     categories: c.categories,
     edited_at: c.edited_at,
   }));
