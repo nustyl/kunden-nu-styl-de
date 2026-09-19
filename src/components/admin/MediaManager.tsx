@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatFileSize } from "@/lib/format";
 import { uploadFileToR2 } from "@/lib/r2/upload-client";
-import { mediaAspectClass, type MediaType, type PostFormat } from "@/types/database";
+import { mediaAspectClass, type MediaType, type PostFormat, type PostStatus } from "@/types/database";
 
 interface MediaItem {
   id: string;
@@ -23,15 +23,22 @@ interface UploadJob {
   error?: string;
 }
 
+const PREVIEWABLE = /^(image\/(jpeg|png|webp)|video\/)/;
+const LOCKED_STATUSES: PostStatus[] = ["freigegeben", "veroeffentlicht"];
+
 export function MediaManager({
   postId,
   clientId,
   format,
+  status,
+  flaggedSlides,
   initialMedia,
 }: {
   postId: string;
   clientId: string;
   format: PostFormat;
+  status: PostStatus;
+  flaggedSlides: number[];
   initialMedia: MediaItem[];
 }) {
   const router = useRouter();
@@ -41,6 +48,8 @@ export function MediaManager({
   const [jobs, setJobs] = useState<UploadJob[]>([]);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const replaceInputRef = useRef<HTMLInputElement>(null);
+  const replaceTarget = useRef<{ item: MediaItem; slide: number } | null>(null);
   const supabase = createClient();
 
   function updateJob(id: string, patch: Partial<UploadJob>) {
@@ -73,12 +82,51 @@ export function MediaManager({
 
         if (error) throw new Error(error.message);
 
-        setMedia((prev) => [...prev, { ...inserted, url: null }]);
+        setMedia((prev) => [
+          ...prev,
+          { ...inserted, url: PREVIEWABLE.test(mimeType) ? URL.createObjectURL(file) : null },
+        ]);
         setJobs((prev) => prev.filter((j) => j.id !== jobId));
         router.refresh();
       } catch (err) {
         updateJob(jobId, { error: err instanceof Error ? err.message : "Fehler" });
       }
+    }
+  }
+
+  async function replaceMedia(item: MediaItem, slide: number, file: File) {
+    if (
+      LOCKED_STATUSES.includes(status) &&
+      !confirm(
+        "Dieser Beitrag ist bereits freigegeben bzw. veröffentlicht. Die Datei trotzdem ersetzen?"
+      )
+    ) {
+      return;
+    }
+    const jobId = crypto.randomUUID();
+    setJobs((prev) => [...prev, { id: jobId, name: `Slide ${slide} ersetzen: ${file.name}`, progress: 0 }]);
+    try {
+      const { key, type, size, mimeType } = await uploadFileToR2(file, { postId, clientId }, (progress) =>
+        updateJob(jobId, { progress })
+      );
+      const res = await fetch("/api/r2/replace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaId: item.id, key, mimeType, size }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "Ersetzen fehlgeschlagen");
+
+      setMedia((prev) =>
+        prev.map((m) =>
+          m.id === item.id
+            ? { ...m, r2_key: key, type, size, url: PREVIEWABLE.test(mimeType) ? URL.createObjectURL(file) : null }
+            : m
+        )
+      );
+      setJobs((prev) => prev.filter((j) => j.id !== jobId));
+      router.refresh();
+    } catch (err) {
+      updateJob(jobId, { error: err instanceof Error ? err.message : "Fehler" });
     }
   }
 
@@ -138,6 +186,19 @@ export function MediaManager({
         />
       </div>
 
+      <input
+        ref={replaceInputRef}
+        type="file"
+        accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.mp4,.mov,image/*,video/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          const target = replaceTarget.current;
+          e.target.value = "";
+          if (file && target) replaceMedia(target.item, target.slide, file);
+        }}
+      />
+
       {jobs.length > 0 && (
         <div className="grid gap-2">
           {jobs.map((job) => (
@@ -162,14 +223,18 @@ export function MediaManager({
 
       {media.length > 0 && (
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-          {media.map((m, i) => (
+          {media.map((m, i) => {
+            const flagged = flaggedSlides.includes(i + 1);
+            return (
+            <div key={m.id} className="grid gap-1 content-start">
             <div
-              key={m.id}
               draggable
               onDragStart={() => setDragIndex(i)}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(i)}
-              className={`relative ${mediaAspectClass(format)} rounded-sm overflow-hidden border border-ink-700 bg-ink-900 cursor-grab`}
+              className={`relative ${mediaAspectClass(format)} rounded-sm overflow-hidden border bg-ink-900 cursor-grab ${
+                flagged ? "border-orange-500 ring-2 ring-orange-500/60" : "border-ink-700"
+              }`}
             >
               {m.url ? (
                 m.type === "video" ? (
@@ -196,8 +261,23 @@ export function MediaManager({
               <span className="absolute bottom-1 right-1 text-xs bg-black/70 text-white rounded-full px-2 py-0.5">
                 {formatFileSize(m.size)}
               </span>
+              <button
+                type="button"
+                onClick={() => {
+                  replaceTarget.current = { item: m, slide: i + 1 };
+                  replaceInputRef.current?.click();
+                }}
+                className="absolute top-1 left-1 rounded-full bg-black/70 hover:bg-orange-600 text-white text-xs px-2 py-1 transition-colors"
+              >
+                Ersetzen
+              </button>
             </div>
-          ))}
+            {flagged && (
+              <span className="text-xs font-medium text-orange-400">⚠ Änderung gewünscht</span>
+            )}
+            </div>
+            );
+          })}
         </div>
       )}
     </div>

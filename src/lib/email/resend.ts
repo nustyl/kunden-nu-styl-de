@@ -18,11 +18,17 @@ export async function notifyAdmin(subject: string, text: string) {
   }
 }
 
+// Jede Person bekommt ihre eigene Mail, damit Kunden-Adressen untereinander
+// nicht sichtbar sind.
 export async function notifyClients(emails: string[], subject: string, text: string) {
   if (!resend || emails.length === 0) return;
-  try {
-    await resend.emails.send({ from, to: emails, subject, text });
-  } catch (err) {
-    console.error("Resend-Fehler (Kunden-Benachrichtigung):", err);
-  }
+  await Promise.all(
+    emails.map(async (to) => {
+      try {
+        await resend.emails.send({ from, to, subject, text });
+      } catch (err) {
+        console.error("Resend-Fehler (Kunden-Benachrichtigung):", err);
+      }
+    })
+  );
 }

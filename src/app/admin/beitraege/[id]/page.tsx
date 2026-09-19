@@ -82,6 +82,23 @@ export default async function EditPostPage({
     }))
   );
 
+  // Letzter Änderungswunsch eines Kunden -> betroffene Slides markieren
+  const latestRequest = [...comments]
+    .reverse()
+    .find((c) => !c.is_admin && c.categories && c.categories.length > 0);
+  const requestCategories = latestRequest?.categories ?? [];
+  const flaggedSlides = new Set<number>();
+  for (const cat of requestCategories) {
+    const m = cat.match(/^Slide (\d+) ·/);
+    if (m) flaggedSlides.add(Number(m[1]));
+  }
+  if (
+    requestCategories.length > 0 &&
+    !requestCategories.some((cat) => cat.startsWith("Slide ") || cat.startsWith("Allgemein ·"))
+  ) {
+    flaggedSlides.add(1);
+  }
+
   const updateAction = updatePost.bind(null, id);
   const deleteAction = deletePost.bind(null, id);
   const reuploadAction = reuploadNewVersion.bind(null, id);
@@ -160,21 +177,57 @@ export default async function EditPostPage({
         </section>
       )}
 
+      {post.status === "aenderung_gewuenscht" && (
+        <section className="rounded-md border border-orange-600 bg-orange-950/20 p-4 grid gap-3">
+          <div>
+            <h2 className="font-display font-semibold">Änderungswünsche vom Kunden</h2>
+            <p className="text-xs text-ink-400">
+              Setze sie unten um: pro Slide auf &bdquo;Ersetzen&ldquo; klicken (Position bleibt),
+              Dateien löschen oder neue hochladen. Danach die Überarbeitung senden.
+            </p>
+          </div>
+          {latestRequest ? (
+            <div className="rounded-sm border border-ink-700 bg-ink-900 p-3 grid gap-2">
+              <div className="flex flex-wrap gap-1.5">
+                {requestCategories.map((cat) => (
+                  <span
+                    key={cat}
+                    className="rounded-full bg-orange-500/15 text-orange-300 text-xs px-2 py-0.5"
+                  >
+                    {cat}
+                  </span>
+                ))}
+              </div>
+              <p className="text-sm whitespace-pre-wrap break-words">{latestRequest.body}</p>
+              <p className="text-xs text-ink-500">
+                {latestRequest.author_name} · {formatDateTime(latestRequest.created_at)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-ink-300">Kein Änderungswunsch-Text gefunden.</p>
+          )}
+          <ConfirmForm
+            action={reuploadAction}
+            confirmMessage={`Überarbeitung als Version ${post.version + 1} zur Freigabe senden? Alle Personen von ${client.name} werden per E-Mail informiert.`}
+            className="justify-self-start"
+          >
+            <Button variant="primary" type="submit">
+              Überarbeitung zur Freigabe senden
+            </Button>
+          </ConfirmForm>
+        </section>
+      )}
+
       <section className="grid gap-3">
         <h2 className="font-display font-semibold">Medien</h2>
         <MediaManager
           postId={post.id}
           clientId={client.id}
           format={post.format}
+          status={post.status}
+          flaggedSlides={post.status === "aenderung_gewuenscht" ? [...flaggedSlides] : []}
           initialMedia={mediaWithUrls}
         />
-        {post.status === "aenderung_gewuenscht" && (
-          <form action={reuploadAction}>
-            <Button variant="ghost" type="submit">
-              Neue Version hochgeladen → zurück auf &bdquo;Zur Freigabe&ldquo;
-            </Button>
-          </form>
-        )}
       </section>
 
       <section className={`${cardClass}`}>

@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
 import { r2, R2_BUCKET } from "@/lib/r2/client";
 import { berlinLocalToISO } from "@/lib/format";
+import { notifyClients } from "@/lib/email/resend";
 import type { PostFormat, PostStatus } from "@/types/database";
 
 // -------------------------------------------------------------------
@@ -297,22 +298,43 @@ export async function updatePost(postId: string, formData: FormData) {
   redirect(`/admin/kunden/${updated.client_id}`);
 }
 
+// Überarbeitung fertig: neue Version, Status zurück auf "Zur Freigabe" und
+// alle Personen des Kunden per E-Mail informieren.
 export async function reuploadNewVersion(postId: string) {
   await requireAdmin();
   const supabase = await createClient();
   const { data: post } = await supabase
     .from("posts")
-    .select("version")
+    .select("version, title, client_id")
     .eq("id", postId)
     .single();
+  if (!post) throw new Error("Beitrag nicht gefunden");
 
+  const version = (post.version ?? 1) + 1;
   const { error } = await supabase
     .from("posts")
-    .update({ version: (post?.version ?? 1) + 1, status: "zur_freigabe" })
+    .update({ version, status: "zur_freigabe" })
     .eq("id", postId);
-
   if (error) throw new Error(error.message);
+
+  const admin = createAdminClient();
+  const { data: people } = await admin.from("profiles").select("id").eq("client_id", post.client_id);
+  const emails = (
+    await Promise.all(
+      (people ?? []).map(async (p) => (await admin.auth.admin.getUserById(p.id)).data.user?.email)
+    )
+  ).filter((e): e is string => !!e);
+
+  await notifyClients(
+    emails,
+    `Überarbeitung bereit: ${post.title}`,
+    `Hallo,\n\ndie überarbeitete Version (V${version}) von "${post.title}" steht im Kundenportal zur Freigabe bereit:\n${process.env.NEXT_PUBLIC_SITE_URL}/beitraege/${postId}\n\nViele Grüße\nNU STYL`
+  );
+
   revalidatePath(`/admin/beitraege/${postId}`);
+  revalidatePath(`/admin/kunden/${post.client_id}`);
+  revalidatePath("/admin");
+  redirect(`/admin/kunden/${post.client_id}`);
 }
 
 export async function batchSetStatus(postIds: string[], status: PostStatus) {

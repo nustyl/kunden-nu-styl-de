@@ -118,6 +118,13 @@ export default async function PostDetailPage({
         </div>
       </div>
 
+      {post.version > 1 && post.status === "zur_freigabe" && (
+        <div className="rounded-sm border border-orange-600 bg-orange-950/20 p-3 text-sm">
+          <strong>Überarbeitete Version {post.version}:</strong> NU STYL hat den Beitrag anhand
+          deiner Änderungswünsche überarbeitet. Bitte prüfe ihn erneut.
+        </div>
+      )}
+
       <MediaViewer items={validMedia} format={post.format} />
 
       <div className="grid gap-3">
