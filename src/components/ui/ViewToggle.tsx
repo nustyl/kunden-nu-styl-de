@@ -17,10 +17,10 @@ export function ViewToggle({
   }
 
   return (
-    <div className="inline-flex rounded-full border border-ink-600 p-0.5 text-xs">
+    <div className="inline-flex rounded-full border border-ink-600 p-1 text-sm">
       <Link
         href={hrefFor("karten")}
-        className={`px-3 py-1.5 rounded-full transition-colors ${
+        className={`px-4 py-2 rounded-full transition-colors ${
           view === "karten" ? "bg-orange-600 text-white" : "text-ink-300 hover:text-paper"
         }`}
       >
@@ -28,7 +28,7 @@ export function ViewToggle({
       </Link>
       <Link
         href={hrefFor("tabelle")}
-        className={`px-3 py-1.5 rounded-full transition-colors ${
+        className={`px-4 py-2 rounded-full transition-colors ${
           view === "tabelle" ? "bg-orange-600 text-white" : "text-ink-300 hover:text-paper"
         }`}
       >

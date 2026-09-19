@@ -182,7 +182,7 @@ export function MediaViewer({ items, format }: { items: MediaItem[]; format: Pos
   if (items.length === 0) {
     return (
       <div
-        className={`${aspect} w-full max-w-[320px] mx-auto rounded-md bg-ink-800 flex items-center justify-center text-ink-500 text-sm`}
+        className={`${aspect} w-full max-w-[440px] mx-auto rounded-md bg-ink-800 flex items-center justify-center text-ink-500 text-sm`}
       >
         Kein Medium
       </div>
@@ -215,7 +215,7 @@ export function MediaViewer({ items, format }: { items: MediaItem[]; format: Pos
   }
 
   return (
-    <div className="w-full max-w-[320px] mx-auto grid gap-2">
+    <div className="w-full max-w-[440px] mx-auto grid gap-2">
       <div
         className={`relative ${aspect} rounded-md overflow-hidden bg-black`}
         onTouchStart={onTouchStart}

@@ -2,16 +2,9 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { presignGet } from "@/lib/r2/presign";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { DeadlineBadge } from "@/components/ui/DeadlineBadge";
-import { MediaViewer } from "@/components/portal/MediaViewer";
-import { ApprovalActions } from "@/components/portal/ApprovalActions";
-import { CommentThread } from "@/components/portal/CommentThread";
-import { DateProposalForm } from "@/components/portal/DateProposalForm";
+import { PostDetailView } from "@/components/portal/PostDetailView";
 import { getCurrentProfile } from "@/lib/auth";
-import { formatDateTime } from "@/lib/format";
 import {
-  POST_FORMAT_LABELS,
   maxRoundsForFormat,
   type Post,
   type PostMedia,
@@ -86,101 +79,20 @@ export default async function PostDetailPage({
     edited_at: c.edited_at,
   }));
 
-  const canRespond =
-    post.status === "zur_freigabe" ||
-    post.status === "aenderung_gewuenscht" ||
-    post.status === "zurueckgestellt";
-
   const maxRounds = post.clients ? maxRoundsForFormat(post.clients, post.format) : null;
   const roundsLimit = maxRounds === null ? null : maxRounds + post.revision_rounds_bonus;
 
   return (
-    <div className="grid gap-6">
-      <div>
-        <div className="flex items-center gap-2 flex-wrap mb-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-orange-400">
-            {POST_FORMAT_LABELS[post.format]}
-          </span>
-          <StatusBadge status={post.status} />
-        </div>
-        <h1 className="text-xl font-display font-semibold mb-2">{post.title}</h1>
-        <div className="grid gap-2">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-ink-600 bg-ink-800 px-3 py-1 text-xs font-semibold text-ink-300">
-              <span aria-hidden>📅</span>
-              Posting: {formatDateTime(post.publish_date)}
-            </span>
-            {canRespond && post.proposed_publish_date_status !== "offen" && (
-              <DateProposalForm postId={post.id} currentDate={post.publish_date} />
-            )}
-          </div>
-          <div>
-            <DeadlineBadge deadline={post.approval_deadline} />
-          </div>
-          {post.proposed_publish_date_status === "offen" && (
-            <p className="text-xs text-orange-300">
-              Terminvorschlag &bdquo;{formatDateTime(post.proposed_publish_date)}&ldquo; wartet auf
-              Bestätigung von NU STYL.
-            </p>
-          )}
-          {post.proposed_publish_date_status === "abgelehnt" && (
-            <p className="text-xs text-red-400">Dein letzter Terminvorschlag wurde abgelehnt.</p>
-          )}
-        </div>
-      </div>
-
-      {post.version > 1 && post.status === "zur_freigabe" && (
-        <div className="rounded-sm border border-orange-600 bg-orange-950/20 p-3 text-sm">
-          <strong>Überarbeitete Version {post.version}:</strong> NU STYL hat den Beitrag anhand
-          deiner Änderungswünsche überarbeitet. Bitte prüfe ihn erneut.
-        </div>
-      )}
-
-      <MediaViewer items={validMedia} format={post.format} />
-
-      <div className="grid gap-3">
-        <div className="flex gap-2 flex-wrap">
-          {post.platforms.map((p) => (
-            <span
-              key={p}
-              className="text-xs px-2 py-1 rounded-full bg-ink-800 border border-ink-700 text-ink-300"
-            >
-              {p}
-            </span>
-          ))}
-        </div>
-        {post.caption && (
-          <p className="text-sm whitespace-pre-wrap leading-relaxed">{post.caption}</p>
-        )}
-        {post.hashtags && (
-          <p className="text-sm text-orange-400 break-words">{post.hashtags}</p>
-        )}
-      </div>
-
-      {canRespond && (
-        <div className="border-t border-ink-700 pt-6">
-          <ApprovalActions
-            postId={post.id}
-            format={post.format}
-            roundsUsed={post.revision_rounds_used}
-            roundsLimit={roundsLimit}
-            slides={validMedia.map((m) => m.type)}
-            status={post.status}
-          />
-        </div>
-      )}
-
-      <div className="border-t border-ink-700 pt-6">
-        <CommentThread
-          postId={post.id}
-          comments={comments}
-          viewer={{
-            id: session?.user.id ?? "",
-            name: session?.profile.full_name ?? "Ich",
-            isAdmin: session?.profile.role === "admin",
-          }}
-        />
-      </div>
-    </div>
+    <PostDetailView
+      post={post}
+      media={validMedia}
+      comments={comments}
+      viewer={{
+        id: session?.user.id ?? "",
+        name: session?.profile.full_name ?? "Ich",
+        isAdmin: session?.profile.role === "admin",
+      }}
+      roundsLimit={roundsLimit}
+    />
   );
 }
