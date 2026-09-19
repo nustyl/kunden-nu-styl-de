@@ -128,8 +128,34 @@ h4 {
   75%  { transform: translate(10px, 24px) rotate(-5deg); }
   100% { transform: translate(0, 0) rotate(0deg); }
 }
+/* Kleine Bildschirme: größere, kräftigere Leuchtflächen, weniger und kleinere Icons */
 @media (max-width: 700px) {
-  .fx-icons {
+  .glow-blob {
+    filter: blur(50px);
+    opacity: 0.85;
+  }
+  .glow-blob.blob-a {
+    top: -12%;
+    left: -35%;
+    width: 120vw;
+    height: 120vw;
+    max-width: none;
+    max-height: none;
+  }
+  .glow-blob.blob-b {
+    top: 48%;
+    right: -40%;
+    width: 100vw;
+    height: 100vw;
+    max-width: none;
+    max-height: none;
+  }
+  .fx-icon {
+    width: 40px !important;
+    height: 40px !important;
+    opacity: 0.14;
+  }
+  .fx-icon:nth-child(n + 7) {
     display: none;
   }
 }
