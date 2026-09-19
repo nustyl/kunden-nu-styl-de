@@ -71,13 +71,20 @@ export function berlinLocalToISO(local: string | null | undefined): string | nul
   return new Date(instant).toISOString();
 }
 
+// Tage bis zu einem Datum, gerechnet in deutscher Zeit (Server läuft in UTC).
 export function daysUntil(value: string | null): number | null {
   if (!value) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(value);
-  target.setHours(0, 0, 0, 0);
-  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+  const now = berlinParts(new Date());
+  const today = Date.UTC(now.y, now.mo - 1, now.d);
+  const dateOnly = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  let target: number;
+  if (dateOnly) {
+    target = Date.UTC(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]));
+  } else {
+    const p = berlinParts(new Date(value));
+    target = Date.UTC(p.y, p.mo - 1, p.d);
+  }
+  return Math.round((target - today) / 86_400_000);
 }
 
 export type DeadlineUrgency = "normal" | "warning" | "overdue";

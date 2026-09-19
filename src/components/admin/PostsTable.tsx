@@ -90,7 +90,7 @@ export function PostsTable({ posts }: { posts: Row[] }) {
                 Posting {formatDateTime(post.publish_date)}
               </span>
             </Link>
-            <DeadlineBadge deadline={post.approval_deadline} />
+            <DeadlineBadge deadline={post.approval_deadline} status={post.status} />
             <StatusBadge status={post.status} />
           </div>
         ))}

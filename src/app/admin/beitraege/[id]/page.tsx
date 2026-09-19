@@ -83,11 +83,19 @@ export default async function EditPostPage({
     }))
   );
 
-  // Letzter Änderungswunsch eines Kunden -> betroffene Slides markieren
-  const latestRequest = [...comments]
+  // Änderungswünsche der aktuellen Runde: alle Kunden-Kommentare mit Kategorien
+  // seit der letzten "Version n"-Meldung (Wunsch + spätere Ergänzungen).
+  const lastRevisionMarker = [...comments]
     .reverse()
-    .find((c) => !c.is_admin && c.categories && c.categories.length > 0);
-  const requestCategories = latestRequest?.categories ?? [];
+    .find((c) => c.is_admin && c.categories?.some((cat) => /^Version \d+$/.test(cat)));
+  const currentRequests = comments.filter(
+    (c) =>
+      !c.is_admin &&
+      c.categories &&
+      c.categories.length > 0 &&
+      (!lastRevisionMarker || c.created_at > lastRevisionMarker.created_at)
+  );
+  const requestCategories = [...new Set(currentRequests.flatMap((c) => c.categories ?? []))];
   const flaggedSlides = new Set<number>();
   for (const cat of requestCategories) {
     const m = cat.match(/^Slide (\d+) ·/);
@@ -209,22 +217,32 @@ export default async function EditPostPage({
               Dateien löschen oder neue hochladen. Danach die Überarbeitung senden.
             </p>
           </div>
-          {latestRequest ? (
-            <div className="rounded-sm border border-ink-700 bg-ink-900 p-3 grid gap-2">
-              <div className="flex flex-wrap gap-1.5">
-                {requestCategories.map((cat) => (
-                  <span
-                    key={cat}
-                    className="rounded-full bg-orange-500/15 text-orange-300 text-xs px-2 py-0.5"
-                  >
-                    {cat}
-                  </span>
-                ))}
-              </div>
-              <p className="text-sm whitespace-pre-wrap break-words">{latestRequest.body}</p>
-              <p className="text-xs text-ink-500">
-                {latestRequest.author_name} · {formatDateTime(latestRequest.created_at)}
-              </p>
+          {currentRequests.length > 0 ? (
+            <div className="grid gap-3">
+              {currentRequests.map((request, index) => (
+                <div
+                  key={request.id}
+                  className="rounded-sm border border-ink-700 bg-ink-900 p-3 grid gap-2"
+                >
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-orange-400 mr-1">
+                      {index === 0 ? "Änderungswunsch" : "Ergänzung"}
+                    </span>
+                    {(request.categories ?? []).map((cat) => (
+                      <span
+                        key={cat}
+                        className="rounded-full bg-orange-500/15 text-orange-300 text-xs px-2 py-0.5"
+                      >
+                        {cat}
+                      </span>
+                    ))}
+                  </div>
+                  <p className="text-sm whitespace-pre-wrap break-words">{request.body}</p>
+                  <p className="text-xs text-ink-500">
+                    {request.author_name} · {formatDateTime(request.created_at)}
+                  </p>
+                </div>
+              ))}
             </div>
           ) : (
             <p className="text-sm text-ink-300">Kein Änderungswunsch-Text gefunden.</p>

@@ -22,12 +22,10 @@ export async function createClientCompany(formData: FormData) {
   const supabase = await createClient();
 
   // Doppelklick / erneutes Absenden: bestehenden Kunden gleichen Namens wiederverwenden.
-  const { data: existing } = await supabase
-    .from("clients")
-    .select("id")
-    .ilike("name", name)
-    .limit(1)
-    .maybeSingle();
+  const { data: allClients } = await supabase.from("clients").select("id, name");
+  const existing = (allClients ?? []).find(
+    (c) => c.name.trim().toLowerCase() === name.toLowerCase()
+  );
   if (existing) {
     redirect(`/admin/kunden/${existing.id}`);
   }
@@ -45,12 +43,20 @@ export async function createClientCompany(formData: FormData) {
 
 const REVISION_ROUNDS_FORMAT_KEYS = ["reel", "beitrag", "story"] as const;
 
+function parseRounds(raw: string): number {
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 0) {
+    throw new Error("Anzahl der Änderungsschleifen muss eine ganze Zahl von 0 oder mehr sein");
+  }
+  return n;
+}
+
 export async function updateClientCompany(clientId: string, formData: FormData) {
   await requireAdmin();
   const name = String(formData.get("name") ?? "").trim();
   if (!name) throw new Error("Name ist erforderlich");
   const roundsRaw = String(formData.get("max_revision_rounds") ?? "").trim();
-  const max_revision_rounds = roundsRaw === "" ? null : Number(roundsRaw);
+  const max_revision_rounds = roundsRaw === "" ? null : parseRounds(roundsRaw);
 
   const max_revision_rounds_by_format: Record<string, number | null> = {};
   for (const key of REVISION_ROUNDS_FORMAT_KEYS) {
@@ -59,7 +65,7 @@ export async function updateClientCompany(clientId: string, formData: FormData) 
       continue;
     }
     const raw = String(formData.get(`rounds_${key}`) ?? "").trim();
-    if (raw !== "") max_revision_rounds_by_format[key] = Number(raw);
+    if (raw !== "") max_revision_rounds_by_format[key] = parseRounds(raw);
   }
 
   const supabase = await createClient();
@@ -105,8 +111,9 @@ export async function inviteClientUser(clientId: string, formData: FormData): Pr
   return { ok: true };
 }
 
-// Einzelne Person wieder entfernen (Zugang + Profil, Beiträge/Kommentare
-// des Kunden bleiben unberührt).
+// Einzelne Person wieder entfernen. Löscht Zugang, Profil UND alle Kommentare
+// dieser Person (comments.author_id hängt per ON DELETE CASCADE am Profil).
+// Beiträge und Kommentare anderer Personen bleiben erhalten.
 export async function revokeClientUser(clientId: string, personId: string) {
   await requireAdmin();
   const admin = createAdminClient();
@@ -339,7 +346,7 @@ export async function releasePost(postId: string) {
 // Überarbeitung fertig: neue Version, Status zurück auf "Zur Freigabe" und
 // alle Personen des Kunden per E-Mail informieren.
 export async function reuploadNewVersion(postId: string) {
-  await requireAdmin();
+  const session = await requireAdmin();
   const supabase = await createClient();
   const { data: post } = await supabase
     .from("posts")
@@ -354,6 +361,15 @@ export async function reuploadNewVersion(postId: string) {
     .update({ version, status: "zur_freigabe" })
     .eq("id", postId);
   if (error) throw new Error(error.message);
+
+  // Sichtbarer Verlaufs-Eintrag; dient zugleich als Grenze zwischen den
+  // Änderungsrunden (siehe "Änderungswünsche vom Kunden" auf der Beitragsseite).
+  await supabase.from("comments").insert({
+    post_id: postId,
+    author_id: session.user.id,
+    body: `Überarbeitete Version ${version} steht zur Freigabe bereit.`,
+    categories: [`Version ${version}`],
+  });
 
   const admin = createAdminClient();
   const { data: people } = await admin.from("profiles").select("id").eq("client_id", post.client_id);

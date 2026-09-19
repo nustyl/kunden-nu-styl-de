@@ -63,7 +63,7 @@ export function PostCard({ post, thumbUrl, thumbType, mediaCount }: PostCardProp
         <div className="grid gap-2 text-sm">
           <span className="text-ink-300">Posting: {formatDateTime(post.publish_date)}</span>
           <div>
-            <DeadlineBadge deadline={post.approval_deadline} />
+            <DeadlineBadge deadline={post.approval_deadline} status={post.status} />
           </div>
         </div>
       </div>

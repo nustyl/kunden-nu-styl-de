@@ -41,13 +41,35 @@ Netlify (Hosting) · optional Resend (E-Mail).
    - Site URL: `https://kunden.nu-styl.de`
    - Redirect URLs: `https://kunden.nu-styl.de/auth/callback` und für
      lokale Entwicklung zusätzlich `http://localhost:3000/auth/callback`
-5. **Magic Link ist standardmäßig aktiv** (E-Mail-Provider unter
-   Authentication → Providers → Email, "Confirm email" kann aktiviert
-   bleiben).
-6. **Datenbank-Migration ausführen:** Im Supabase-Dashboard unter **SQL
-   Editor** den Inhalt von [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql)
-   einfügen und ausführen. Das legt alle Tabellen, RLS-Policies und
-   Trigger an.
+5. **E-Mail-Vorlagen anpassen (wichtig, sonst funktioniert der Login
+   nicht in jedem Browser):** Unter **Authentication → Emails →
+   Templates** die Vorlagen **"Magic link or OTP"** und **"Invite user"**
+   so ändern, dass der Link auf die Bestätigungsseite des Portals zeigt.
+   Damit funktioniert der Link in jedem Browser und auf jedem Gerät
+   (Handy-Mail-Apps öffnen Links oft in einem anderen Browser).
+
+   Magic link or OTP:
+   ```html
+   <h2>Anmeldung im NU STYL Kundenportal</h2>
+   <p>Tippe auf den Button, um dich anzumelden. Der Link ist nur kurz gültig und funktioniert einmal.</p>
+   <p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Jetzt anmelden</a></p>
+   ```
+   Invite user:
+   ```html
+   <h2>Du wurdest zum NU STYL Kundenportal eingeladen</h2>
+   <p>Tippe auf den Button, um deinen Zugang zu aktivieren. Der Link funktioniert einmal.</p>
+   <p><a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite">Zugang aktivieren</a></p>
+   ```
+6. **Datenbank-Migrationen ausführen:** Im Supabase-Dashboard unter **SQL
+   Editor** die Dateien aus [`supabase/migrations/`](supabase/migrations)
+   **der Reihe nach und jede einzeln** (eigene Abfrage pro Datei)
+   ausführen: `0001_init.sql`, `0002_add_status_value.sql` (muss allein
+   laufen), `0003_revision_rounds_and_scheduling.sql`,
+   `0004_revision_rounds_per_format.sql`,
+   `0005_edit_delete_comments.sql`. Das legt Tabellen, RLS-Policies,
+   Trigger und die Funktionen für Freigabe, Terminvorschlag und
+   Kommentare an. Bei einem Update der App zuerst die neuen Migrationen
+   ausführen, dann deployen.
 7. **Deinen eigenen Account zum Admin machen:**
    1. Da die Registrierung deaktiviert ist, lade dich zuerst selbst ein:
       Supabase-Dashboard → **Authentication → Users → Invite user** mit
@@ -181,9 +203,13 @@ alles andere funktioniert normal.
 
 1. Kostenlosen Account auf [resend.com](https://resend.com) anlegen
    (Free-Tier: 3.000 E-Mails/Monat, 100/Tag).
-2. Domain verifizieren (DNS-Einträge bei Strato ergänzen) oder für den
-   Start die Resend-Testadresse `onboarding@resend.dev` als Absender
-   nutzen.
+2. Domain verifizieren: am besten eine eigene Subdomain (z. B.
+   `portal.nu-styl.de`) mit den von Resend angezeigten DNS-Einträgen bei
+   Strato. Ohne verifizierte Domain darf Resend nur an die eigene
+   Account-Adresse senden. Zusätzlich in Supabase unter
+   **Authentication → Emails → SMTP Settings** den Resend-SMTP
+   (`smtp.resend.com`, Port 465, Benutzer `resend`, Passwort = API-Key)
+   eintragen, sonst begrenzt Supabase die Login-Mails stark.
 3. API-Key erzeugen → `RESEND_API_KEY`.
 4. `RESEND_FROM_EMAIL` und `ADMIN_NOTIFICATION_EMAIL` (deine eigene
    Adresse, an die Freigaben/Kommentare/Änderungswünsche gemeldet
@@ -214,9 +240,13 @@ im Admin-Panel.
   nichts abgerechnet wird, solange du im Kontingent bleibst. Denk
   daran, veröffentlichte Beiträge im Admin-Panel zu löschen (Button
   "aus R2 löschen"), um Speicher zu sparen.
-- **Netlify Free:** 100 GB Bandbreite/Monat, 300 Build-Minuten/Monat.
-  Da Medien nicht über Netlify laufen (direkter Browser-Upload/-Download
-  zu/von R2), bleibt der Traffic hier gering.
+- **Netlify Free (Credits):** 300 Credits pro Monat, **jeder
+  Produktions-Deploy kostet 15 Credits** (ca. 20 Deploys). Jeder Push
+  auf `main` ist ein Deploy, daher Änderungen bündeln. Sind die Credits
+  aufgebraucht, werden **alle Projekte des Teams pausiert**, auch die
+  Hauptseite. Stand unter Team → Usage & billing prüfen. Da Medien nicht
+  über Netlify laufen (direkter Browser-Upload/-Download zu/von R2),
+  bleibt der Traffic hier gering.
 - **Resend Free** (falls genutzt): 3.000 E-Mails/Monat, 100/Tag — für
   Benachrichtigungen an dich + gelegentliche Kunden-Mails reichlich.
 
@@ -257,7 +287,7 @@ src/
     r2/{client,presign}.ts
     email/resend.ts
     actions/admin.ts        Server Actions für das Admin-Panel
-supabase/migrations/0001_init.sql   Tabellen, RLS, Trigger, RPC
+supabase/migrations/               0001–0005: Tabellen, RLS, Trigger, Funktionen
 ```
 
 ## Sicherheitsmodell (kurz)
@@ -269,6 +299,10 @@ supabase/migrations/0001_init.sql   Tabellen, RLS, Trigger, RPC
   ändern — dafür gibt es die Postgres-Funktion `set_post_status()`
   (SECURITY DEFINER), die Berechtigung und erlaubte Zielwerte selbst
   prüft.
+- Kommentare bearbeiten/löschen laufen über `edit_comment()` /
+  `delete_comment()` (Admin: alle, Kunde: nur eigene). Solange ein
+  Beitrag auf "Änderung gewünscht" steht, sind Freigabe und neue
+  Änderungsrunden für den Kunden gesperrt (Ergänzen bleibt möglich).
 - R2-Zugangsdaten und der Supabase-Service-Role-Key werden ausschließlich
   in Route Handlers / Server Actions verwendet, nie im Client-Bundle.
 - Jede presigned Download-URL wird erst ausgestellt, nachdem geprüft

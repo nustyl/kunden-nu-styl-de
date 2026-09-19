@@ -1,4 +1,5 @@
 import { deadlineUrgency, formatDate } from "@/lib/format";
+import type { PostStatus } from "@/types/database";
 
 const styles = {
   normal: "bg-ink-800 border-ink-600 text-ink-300",
@@ -18,9 +19,16 @@ const icons = {
   overdue: "⚠",
 };
 
-export function DeadlineBadge({ deadline }: { deadline: string | null }) {
+export function DeadlineBadge({
+  deadline,
+  status,
+}: {
+  deadline: string | null;
+  status?: PostStatus;
+}) {
   if (!deadline) return null;
-  const urgency = deadlineUrgency(deadline);
+  // Warnstufen nur, solange der Kunde noch freigeben muss.
+  const urgency = status && status !== "zur_freigabe" ? "normal" : deadlineUrgency(deadline);
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${styles[urgency]}`}

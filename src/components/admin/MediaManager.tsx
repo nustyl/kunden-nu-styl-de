@@ -58,6 +58,7 @@ export function MediaManager({
 
   async function handleFiles(fileList: FileList) {
     const files = Array.from(fileList);
+    let nextOrder = Math.max(-1, ...media.map((m) => m.sort_order)) + 1;
     for (const file of files) {
       const jobId = crypto.randomUUID();
       setJobs((prev) => [...prev, { id: jobId, name: file.name, progress: 0 }]);
@@ -75,7 +76,7 @@ export function MediaManager({
             type,
             mime_type: mimeType,
             size,
-            sort_order: media.length,
+            sort_order: nextOrder++,
           })
           .select()
           .single();

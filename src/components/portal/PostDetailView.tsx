@@ -55,7 +55,7 @@ export function PostDetailView({
             )}
           </div>
           <div>
-            <DeadlineBadge deadline={post.approval_deadline} />
+            <DeadlineBadge deadline={post.approval_deadline} status={post.status} />
           </div>
           {post.proposed_publish_date_status === "offen" && (
             <p className="text-sm text-orange-300">

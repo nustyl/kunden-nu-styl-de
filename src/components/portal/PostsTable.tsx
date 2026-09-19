@@ -33,7 +33,7 @@ export function PostsTable({ posts }: { posts: Post[] }) {
                 {formatDateTime(post.publish_date)}
               </td>
               <td className="px-5 py-4">
-                <DeadlineBadge deadline={post.approval_deadline} />
+                <DeadlineBadge deadline={post.approval_deadline} status={post.status} />
               </td>
               <td className="px-5 py-4">
                 <StatusBadge status={post.status} />

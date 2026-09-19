@@ -116,7 +116,7 @@ export function PostsTableView({ posts }: { posts: Row[] }) {
                   {formatDateTime(post.publish_date)}
                 </td>
                 <td className="px-3 py-2">
-                  <DeadlineBadge deadline={post.approval_deadline} />
+                  <DeadlineBadge deadline={post.approval_deadline} status={post.status} />
                 </td>
                 <td className="px-3 py-2">
                   <StatusBadge status={post.status} />

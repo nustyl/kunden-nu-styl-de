@@ -12,6 +12,7 @@ import {
   deletePublishedMedia,
 } from "@/lib/actions/admin";
 import { Button } from "@/components/ui/Button";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ConfirmForm } from "@/components/admin/ConfirmForm";
 import { InvitePersonForm } from "@/components/admin/InvitePersonForm";
@@ -137,9 +138,9 @@ export default async function ClientDetailPage({
             </div>
           </div>
 
-          <Button type="submit" variant="ghost" className="justify-self-start">
+          <SubmitButton variant="ghost" pendingLabel="Wird gespeichert…" className="justify-self-start">
             Speichern
-          </Button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -162,7 +163,7 @@ export default async function ClientDetailPage({
                 </div>
                 <ConfirmForm
                   action={revokeAction.bind(null, p.id)}
-                  confirmMessage={`${p.full_name || p.email} wirklich ausladen? Der Zugang wird sofort entzogen.`}
+                  confirmMessage={`${p.full_name || p.email} wirklich ausladen? Der Zugang wird sofort entzogen, und alle Kommentare dieser Person werden ebenfalls gelöscht.`}
                   className="flex-none"
                 >
                   <Button variant="danger" type="submit" className="min-h-[40px] px-4">
