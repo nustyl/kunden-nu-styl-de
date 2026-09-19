@@ -7,6 +7,7 @@ import { MediaViewer } from "@/components/portal/MediaViewer";
 import { ApprovalActions } from "@/components/portal/ApprovalActions";
 import { CommentThread } from "@/components/portal/CommentThread";
 import { DateProposalForm } from "@/components/portal/DateProposalForm";
+import { getCurrentProfile } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import {
   POST_FORMAT_LABELS,
@@ -25,6 +26,7 @@ export default async function PostDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const session = await getCurrentProfile();
 
   const { data: post } = await supabase
     .from("posts")
@@ -147,7 +149,14 @@ export default async function PostDetailPage({
       )}
 
       <div className="border-t border-ink-700 pt-6">
-        <CommentThread postId={post.id} comments={comments} />
+        <CommentThread
+          postId={post.id}
+          comments={comments}
+          viewer={{
+            name: session?.profile.full_name ?? "Ich",
+            isAdmin: session?.profile.role === "admin",
+          }}
+        />
       </div>
     </div>
   );

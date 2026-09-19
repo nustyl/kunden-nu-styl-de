@@ -13,9 +13,16 @@ import {
 import { Button } from "@/components/ui/Button";
 import { ConfirmForm } from "@/components/admin/ConfirmForm";
 import { MediaManager } from "@/components/admin/MediaManager";
+import { CommentThread } from "@/components/portal/CommentThread";
 import { inputClass, labelClass, cardClass } from "@/lib/ui-classes";
 import { toDateTimeLocalValue, formatDateTime } from "@/lib/format";
-import { PLATFORMS, maxRoundsForFormat, type PostMedia } from "@/types/database";
+import {
+  PLATFORMS,
+  maxRoundsForFormat,
+  type Comment,
+  type PostMedia,
+  type Profile,
+} from "@/types/database";
 
 export default async function EditPostPage({
   params,
@@ -39,6 +46,22 @@ export default async function EditPostPage({
     .eq("post_id", id)
     .order("sort_order", { ascending: true })
     .returns<PostMedia[]>();
+
+  const { data: rawComments } = await supabase
+    .from("comments")
+    .select("*, profiles ( full_name, role )")
+    .eq("post_id", id)
+    .order("created_at", { ascending: true })
+    .returns<(Comment & { profiles: Pick<Profile, "full_name" | "role"> | null })[]>();
+
+  const comments = (rawComments ?? []).map((c) => ({
+    id: c.id,
+    body: c.body,
+    created_at: c.created_at,
+    author_name: c.profiles?.full_name ?? "Unbekannt",
+    is_admin: c.profiles?.role === "admin",
+    categories: c.categories,
+  }));
 
   const mediaWithUrls = await Promise.all(
     (media ?? []).map(async (m) => ({
@@ -144,6 +167,14 @@ export default async function EditPostPage({
             </Button>
           </form>
         )}
+      </section>
+
+      <section className={`${cardClass}`}>
+        <CommentThread
+          postId={post.id}
+          comments={comments}
+          viewer={{ name: "Luc Picard", isAdmin: true }}
+        />
       </section>
 
       <form action={updateAction} className={`${cardClass} grid gap-4`}>
