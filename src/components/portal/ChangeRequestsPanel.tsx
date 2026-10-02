@@ -90,14 +90,6 @@ function ChangeItem({
       }`}
     >
       <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 [&::-webkit-details-marker]:hidden">
-        <span
-          aria-hidden
-          className={`flex h-5 w-5 flex-none items-center justify-center rounded-full border text-[11px] ${
-            done ? "border-green-500 bg-green-500/20 text-green-400" : "border-ink-500 text-transparent"
-          }`}
-        >
-          ✓
-        </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-sm font-semibold">{item.category}</span>
