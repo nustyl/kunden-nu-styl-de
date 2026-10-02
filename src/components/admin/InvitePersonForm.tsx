@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { inputClass, labelClass } from "@/lib/ui-classes";
 
@@ -12,6 +12,7 @@ export function InvitePersonForm({
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const sendingRef = useRef(false);
 
   if (!open) {
     return (
@@ -27,8 +28,16 @@ export function InvitePersonForm({
   }
 
   return (
+    // Bewusst onSubmit statt <form action>: Zustandsänderungen innerhalb einer
+    // Form-Action werden erst nach deren Ende sichtbar. Der Knopf blieb so
+    // während des Versands klickbar, ein zweiter Klick verschickte eine zweite
+    // Einladung und machte den Link der ersten ungültig.
     <form
-      action={async (formData) => {
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (sendingRef.current) return;
+        sendingRef.current = true;
+        const formData = new FormData(e.currentTarget);
         setPending(true);
         setError(null);
         try {
@@ -38,6 +47,7 @@ export function InvitePersonForm({
         } catch {
           setError("Einladung fehlgeschlagen. Bitte erneut versuchen.");
         } finally {
+          sendingRef.current = false;
           setPending(false);
         }
       }}
