@@ -15,7 +15,9 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmForm } from "@/components/admin/ConfirmForm";
 import { MediaManager } from "@/components/admin/MediaManager";
 import { CommentThread } from "@/components/portal/CommentThread";
+import { ChangeRequestsPanel } from "@/components/portal/ChangeRequestsPanel";
 import { getCurrentProfile } from "@/lib/auth";
+import { loadChangeRounds } from "@/lib/change-requests";
 import { GermanDateTimeField } from "@/components/ui/GermanDateTimeField";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { inputClass, labelClass, cardClass } from "@/lib/ui-classes";
@@ -23,6 +25,7 @@ import { toDateTimeLocalValue, formatDateTime } from "@/lib/format";
 import {
   PLATFORMS,
   maxRoundsForFormat,
+  slideOfSection,
   type Comment,
   type PostMedia,
   type Profile,
@@ -66,7 +69,6 @@ export default async function EditPostPage({
     author_id: c.author_id,
     author_name: c.profiles?.full_name ?? "Unbekannt",
     is_admin: c.profiles?.role === "admin",
-    categories: c.categories,
     edited_at: c.edited_at,
   }));
 
@@ -83,29 +85,15 @@ export default async function EditPostPage({
     }))
   );
 
-  // Änderungswünsche der aktuellen Runde: alle Kunden-Kommentare mit Kategorien
-  // seit der letzten "Version n"-Meldung (Wunsch + spätere Ergänzungen).
-  const lastRevisionMarker = [...comments]
-    .reverse()
-    .find((c) => c.is_admin && c.categories?.some((cat) => /^Version \d+$/.test(cat)));
-  const currentRequests = comments.filter(
-    (c) =>
-      !c.is_admin &&
-      c.categories &&
-      c.categories.length > 0 &&
-      (!lastRevisionMarker || c.created_at > lastRevisionMarker.created_at)
-  );
-  const requestCategories = [...new Set(currentRequests.flatMap((c) => c.categories ?? []))];
+  // Slides mit offenen (noch nicht abgehakten) Punkten der laufenden Runde
+  // werden in der Medienverwaltung markiert.
+  const changeRounds = await loadChangeRounds(id);
   const flaggedSlides = new Set<number>();
-  for (const cat of requestCategories) {
-    const m = cat.match(/^Slide (\d+) ·/);
-    if (m) flaggedSlides.add(Number(m[1]));
-  }
-  if (
-    requestCategories.length > 0 &&
-    !requestCategories.some((cat) => cat.startsWith("Slide ") || cat.startsWith("Allgemein ·"))
-  ) {
-    flaggedSlides.add(1);
+  for (const round of changeRounds.filter((r) => r.resolved_at === null)) {
+    for (const item of round.items) {
+      const slide = slideOfSection(item.section_key);
+      if (slide !== null && !item.done_at) flaggedSlides.add(slide);
+    }
   }
 
   const updateAction = updatePost.bind(null, id);
@@ -208,54 +196,31 @@ export default async function EditPostPage({
         </section>
       )}
 
-      {post.status === "aenderung_gewuenscht" && (
-        <section className="rounded-md border border-orange-600 bg-orange-950/20 p-4 grid gap-3">
-          <div>
-            <h2 className="font-display font-semibold">Änderungswünsche vom Kunden</h2>
-            <p className="text-xs text-ink-400">
-              Setze sie unten um: pro Slide auf &bdquo;Ersetzen&ldquo; klicken (Position bleibt),
-              Dateien löschen oder neue hochladen. Danach die Überarbeitung senden.
-            </p>
-          </div>
-          {currentRequests.length > 0 ? (
-            <div className="grid gap-3">
-              {currentRequests.map((request, index) => (
-                <div
-                  key={request.id}
-                  className="rounded-sm border border-ink-700 bg-ink-900 p-3 grid gap-2"
-                >
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-orange-400 mr-1">
-                      {index === 0 ? "Änderungswunsch" : "Ergänzung"}
-                    </span>
-                    {(request.categories ?? []).map((cat) => (
-                      <span
-                        key={cat}
-                        className="rounded-full bg-orange-500/15 text-orange-300 text-xs px-2 py-0.5"
-                      >
-                        {cat}
-                      </span>
-                    ))}
-                  </div>
-                  <p className="text-sm whitespace-pre-wrap break-words">{request.body}</p>
-                  <p className="text-xs text-ink-500">
-                    {request.author_name} · {formatDateTime(request.created_at)}
-                  </p>
-                </div>
-              ))}
+      {changeRounds.length > 0 && (
+        <section className={`${cardClass} grid gap-4`}>
+          <ChangeRequestsPanel
+            postId={post.id}
+            rounds={changeRounds}
+            viewer={{ id: session?.user.id ?? "", isAdmin: true }}
+          />
+          {post.status === "aenderung_gewuenscht" && (
+            <div className="grid gap-3 border-t border-ink-700 pt-4">
+              <p className="text-xs text-ink-400">
+                Umsetzen: unten pro Slide auf &bdquo;Ersetzen&ldquo; klicken (Position bleibt),
+                Dateien löschen oder neue hochladen, Caption und Hashtags in den Details anpassen.
+                Danach die Überarbeitung senden – die Runde wird damit abgeschlossen.
+              </p>
+              <ConfirmForm
+                action={reuploadAction}
+                confirmMessage={`Überarbeitung als Version ${post.version + 1} zur Freigabe senden? Alle Personen von ${client.name} werden per E-Mail informiert.`}
+                className="justify-self-start"
+              >
+                <Button variant="primary" type="submit">
+                  Überarbeitung zur Freigabe senden
+                </Button>
+              </ConfirmForm>
             </div>
-          ) : (
-            <p className="text-sm text-ink-300">Kein Änderungswunsch-Text gefunden.</p>
           )}
-          <ConfirmForm
-            action={reuploadAction}
-            confirmMessage={`Überarbeitung als Version ${post.version + 1} zur Freigabe senden? Alle Personen von ${client.name} werden per E-Mail informiert.`}
-            className="justify-self-start"
-          >
-            <Button variant="primary" type="submit">
-              Überarbeitung zur Freigabe senden
-            </Button>
-          </ConfirmForm>
         </section>
       )}
 

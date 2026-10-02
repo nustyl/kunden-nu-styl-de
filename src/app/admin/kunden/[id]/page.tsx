@@ -163,7 +163,7 @@ export default async function ClientDetailPage({
                 </div>
                 <ConfirmForm
                   action={revokeAction.bind(null, p.id)}
-                  confirmMessage={`${p.full_name || p.email} wirklich ausladen? Der Zugang wird sofort entzogen, und alle Kommentare dieser Person werden ebenfalls gelöscht.`}
+                  confirmMessage={`${p.full_name || p.email} wirklich ausladen? Der Zugang wird sofort entzogen, und alle Kommentare dieser Person werden ebenfalls gelöscht. Ihre Änderungswünsche bleiben erhalten.`}
                   className="flex-none"
                 >
                   <Button variant="danger" type="submit" className="min-h-[40px] px-4">

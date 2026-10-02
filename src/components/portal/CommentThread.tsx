@@ -14,7 +14,6 @@ interface CommentItem {
   author_id: string;
   author_name: string;
   is_admin: boolean;
-  categories: string[] | null;
 }
 
 const ADMIN_NAME = "Luc Picard";
@@ -184,18 +183,6 @@ export function CommentThread({
                       </span>
                     )}
                   </div>
-                  {c.categories && c.categories.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {c.categories.map((cat) => (
-                        <span
-                          key={cat}
-                          className="rounded-full bg-orange-500/15 text-orange-300 text-xs px-2 py-0.5"
-                        >
-                          {cat}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                   {editing ? (
                     <div className="mt-2 grid gap-2">
                       <textarea

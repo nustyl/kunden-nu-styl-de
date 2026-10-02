@@ -77,6 +77,40 @@ export interface Comment {
   created_at: string;
 }
 
+export interface ChangeRound {
+  id: string;
+  post_id: string;
+  round_no: number;
+  created_by: string | null;
+  created_at: string;
+  resolved_version: number | null;
+  resolved_at: string | null;
+}
+
+export interface ChangeRequest {
+  id: string;
+  round_id: string;
+  post_id: string;
+  author_id: string | null;
+  section_key: string;
+  section_label: string;
+  category: string;
+  body: string;
+  is_supplement: boolean;
+  sort_order: number;
+  done_at: string | null;
+  created_at: string;
+  edited_at: string | null;
+}
+
+// Ein Punkt, so wie ihn der Kunde beim Senden übergibt.
+export interface ChangeRequestInput {
+  section_key: string;
+  section_label: string;
+  category: string;
+  body: string;
+}
+
 export interface PostWithRelations extends Post {
   post_media: PostMedia[];
   comments: (Comment & { profiles: Pick<Profile, "full_name" | "role"> | null })[];
@@ -159,6 +193,19 @@ export interface ChangeSection {
   key: string;
   label: string;
   categories: readonly string[];
+}
+
+// Reihenfolge der Bereiche: Einzelbeitrag/Allgemein zuerst, dann Slides.
+export function sectionRank(sectionKey: string): number {
+  const m = sectionKey.match(/^slide-(\d+)$/);
+  return m ? Number(m[1]) : 0;
+}
+
+// Slide-Nummer, die ein Punkt betrifft (Einzelbeitrag = 1, Allgemein = keine).
+export function slideOfSection(sectionKey: string): number | null {
+  if (sectionKey === "single") return 1;
+  const m = sectionKey.match(/^slide-(\d+)$/);
+  return m ? Number(m[1]) : null;
 }
 
 export function changeSectionsFor(

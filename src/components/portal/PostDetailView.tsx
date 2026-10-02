@@ -6,6 +6,8 @@ import { MediaViewer } from "@/components/portal/MediaViewer";
 import { ApprovalActions } from "@/components/portal/ApprovalActions";
 import { CommentThread } from "@/components/portal/CommentThread";
 import { DateProposalForm } from "@/components/portal/DateProposalForm";
+import { ChangeRequestsPanel } from "@/components/portal/ChangeRequestsPanel";
+import type { ChangeRoundView } from "@/lib/change-requests";
 import { formatDateTime } from "@/lib/format";
 import { POST_FORMAT_LABELS, type Post } from "@/types/database";
 
@@ -13,12 +15,14 @@ export function PostDetailView({
   post,
   media,
   comments,
+  changeRounds,
   viewer,
   roundsLimit,
 }: {
   post: Post;
   media: { url: string; type: "image" | "video" }[];
   comments: ComponentProps<typeof CommentThread>["comments"];
+  changeRounds: ChangeRoundView[];
   viewer: ComponentProps<typeof CommentThread>["viewer"];
   roundsLimit: number | null;
 }) {
@@ -102,6 +106,16 @@ export function PostDetailView({
               {post.hashtags && (
                 <p className="break-words text-base text-orange-400">{post.hashtags}</p>
               )}
+            </div>
+          )}
+
+          {changeRounds.length > 0 && (
+            <div className="border-t border-ink-700 pt-8">
+              <ChangeRequestsPanel
+                postId={post.id}
+                rounds={changeRounds}
+                viewer={{ id: viewer.id, isAdmin: viewer.isAdmin }}
+              />
             </div>
           )}
 

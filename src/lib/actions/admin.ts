@@ -8,7 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
 import { r2, R2_BUCKET } from "@/lib/r2/client";
 import { berlinLocalToISO } from "@/lib/format";
-import { notifyClients } from "@/lib/email/resend";
+import { clientPeopleEmails, notifyClientNewPosts, notifyClients } from "@/lib/email/resend";
 import type { PostFormat, PostStatus } from "@/types/database";
 
 // -------------------------------------------------------------------
@@ -293,9 +293,24 @@ export async function createPost(formData: FormData): Promise<{ id: string; clie
   return { id: data.id, clientId: data.client_id };
 }
 
+// Nach dem Anlegen + Hochladen der Medien: Kunde per E-Mail informieren,
+// falls der Beitrag direkt "Zur Freigabe" angelegt wurde. Erst danach, damit
+// der Link in der Mail nicht auf einen Beitrag ohne Bilder zeigt.
+export async function announceNewPost(postId: string) {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data: post } = await supabase
+    .from("posts")
+    .select("id, title, approval_deadline, client_id, status")
+    .eq("id", postId)
+    .single();
+  if (post?.status === "zur_freigabe") await notifyClientNewPosts(post.client_id, [post]);
+}
+
 export async function updatePost(postId: string, formData: FormData) {
   await requireAdmin();
   const supabase = await createClient();
+  const { data: before } = await supabase.from("posts").select("status").eq("id", postId).single();
 
   const payload = {
     title: String(formData.get("title") ?? "").trim(),
@@ -312,9 +327,14 @@ export async function updatePost(postId: string, formData: FormData) {
     .from("posts")
     .update(payload)
     .eq("id", postId)
-    .select("client_id")
+    .select("id, title, approval_deadline, client_id")
     .single();
   if (error) throw new Error(error.message);
+
+  // Entwurf wurde über die Details auf "Zur Freigabe" gestellt -> Kunde informieren.
+  if (before?.status === "entwurf" && payload.status === "zur_freigabe") {
+    await notifyClientNewPosts(updated.client_id, [updated]);
+  }
 
   revalidatePath(`/admin/beitraege/${postId}`);
   revalidatePath(`/admin/kunden/${updated.client_id}`);
@@ -332,9 +352,11 @@ export async function releasePost(postId: string) {
     .update({ status: "zur_freigabe" })
     .eq("id", postId)
     .eq("status", "entwurf")
-    .select("client_id")
+    .select("id, title, approval_deadline, client_id")
     .single();
   if (error) throw new Error(error.message);
+
+  await notifyClientNewPosts(post.client_id, [post]);
 
   revalidatePath(`/admin/beitraege/${postId}`);
   revalidatePath(`/admin/kunden/${post.client_id}`);
@@ -346,7 +368,7 @@ export async function releasePost(postId: string) {
 // Überarbeitung fertig: neue Version, Status zurück auf "Zur Freigabe" und
 // alle Personen des Kunden per E-Mail informieren.
 export async function reuploadNewVersion(postId: string) {
-  const session = await requireAdmin();
+  await requireAdmin();
   const supabase = await createClient();
   const { data: post } = await supabase
     .from("posts")
@@ -361,26 +383,11 @@ export async function reuploadNewVersion(postId: string) {
     .update({ version, status: "zur_freigabe" })
     .eq("id", postId);
   if (error) throw new Error(error.message);
-
-  // Sichtbarer Verlaufs-Eintrag; dient zugleich als Grenze zwischen den
-  // Änderungsrunden (siehe "Änderungswünsche vom Kunden" auf der Beitragsseite).
-  await supabase.from("comments").insert({
-    post_id: postId,
-    author_id: session.user.id,
-    body: `Überarbeitete Version ${version} steht zur Freigabe bereit.`,
-    categories: [`Version ${version}`],
-  });
-
-  const admin = createAdminClient();
-  const { data: people } = await admin.from("profiles").select("id").eq("client_id", post.client_id);
-  const emails = (
-    await Promise.all(
-      (people ?? []).map(async (p) => (await admin.auth.admin.getUserById(p.id)).data.user?.email)
-    )
-  ).filter((e): e is string => !!e);
+  // Die laufende Änderungsrunde schließt ein Datenbank-Trigger automatisch
+  // ("umgesetzt in Version n"), sobald der Status "Änderung gewünscht" verlässt.
 
   await notifyClients(
-    emails,
+    await clientPeopleEmails(post.client_id),
     `Überarbeitung bereit: ${post.title}`,
     `Hallo,\n\ndie überarbeitete Version (V${version}) von "${post.title}" steht im Kundenportal zur Freigabe bereit:\n${process.env.NEXT_PUBLIC_SITE_URL}/beitraege/${postId}\n\nViele Grüße\nNU STYL`
   );
@@ -395,8 +402,22 @@ export async function batchSetStatus(postIds: string[], status: PostStatus) {
   await requireAdmin();
   if (postIds.length === 0) return;
   const supabase = await createClient();
+  const { data: drafts } = await supabase
+    .from("posts")
+    .select("id, title, approval_deadline, client_id")
+    .in("id", postIds)
+    .eq("status", "entwurf");
   const { error } = await supabase.from("posts").update({ status }).in("id", postIds);
   if (error) throw new Error(error.message);
+
+  // Entwürfe, die jetzt "Zur Freigabe" stehen: pro Kunde eine Sammel-Mail.
+  if (status === "zur_freigabe" && drafts && drafts.length > 0) {
+    const byClient = new Map<string, typeof drafts>();
+    for (const d of drafts) byClient.set(d.client_id, [...(byClient.get(d.client_id) ?? []), d]);
+    await Promise.all(
+      [...byClient].map(([clientId, posts]) => notifyClientNewPosts(clientId, posts))
+    );
+  }
   revalidatePath("/admin/beitraege");
   revalidatePath("/admin");
 }

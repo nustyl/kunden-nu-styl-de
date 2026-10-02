@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { presignGet } from "@/lib/r2/presign";
 import { PostDetailView } from "@/components/portal/PostDetailView";
 import { getCurrentProfile } from "@/lib/auth";
+import { loadChangeRounds } from "@/lib/change-requests";
 import {
   maxRoundsForFormat,
   type Post,
@@ -75,9 +76,10 @@ export default async function PostDetailPage({
     author_id: c.author_id,
     author_name: authorById.get(c.author_id)?.full_name ?? "Unbekannt",
     is_admin: authorById.get(c.author_id)?.role === "admin",
-    categories: c.categories,
     edited_at: c.edited_at,
   }));
+
+  const changeRounds = await loadChangeRounds(id);
 
   const maxRounds = post.clients ? maxRoundsForFormat(post.clients, post.format) : null;
   const roundsLimit = maxRounds === null ? null : maxRounds + post.revision_rounds_bonus;
@@ -87,6 +89,7 @@ export default async function PostDetailPage({
       post={post}
       media={validMedia}
       comments={comments}
+      changeRounds={changeRounds}
       viewer={{
         id: session?.user.id ?? "",
         name: session?.profile.full_name ?? "Ich",

@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { changeSectionsFor, type MediaType, type PostFormat, type PostStatus } from "@/types/database";
+import {
+  changeSectionsFor,
+  type ChangeRequestInput,
+  type MediaType,
+  type PostFormat,
+  type PostStatus,
+} from "@/types/database";
 
 interface ApprovalActionsProps {
   postId: string;
@@ -45,16 +51,13 @@ export function ApprovalActions({
   const hasRoundsLeft = roundsLeft === null || roundsLeft > 0;
   const { carousel, sections } = changeSectionsFor(format, slides);
 
-  const entries = sections.flatMap((section) =>
+  const items: ChangeRequestInput[] = sections.flatMap((section) =>
     section.categories.flatMap((cat) => {
       const text = categoryTexts[`${section.key}::${cat}`]?.trim();
       if (!text) return [];
-      const label = carousel ? `${section.label} · ${cat}` : cat;
-      return [{ label, text }];
+      return [{ section_key: section.key, section_label: section.label, category: cat, body: text }];
     })
   );
-  const filledCategories = entries.map((e) => e.label);
-  const combinedComment = entries.map((e) => `${e.label}:\n${e.text}`).join("\n\n");
 
   function setCategoryText(key: string, value: string) {
     setCategoryTexts((prev) => ({ ...prev, [key]: value }));
@@ -74,8 +77,7 @@ export function ApprovalActions({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         status,
-        comment: status === "aenderung_gewuenscht" ? combinedComment : undefined,
-        categories: status === "aenderung_gewuenscht" ? filledCategories : undefined,
+        items: status === "aenderung_gewuenscht" ? items : undefined,
       }),
     });
     setLoading(false);
@@ -92,10 +94,10 @@ export function ApprovalActions({
   async function submitSupplement() {
     setLoading(true);
     setError(null);
-    const res = await fetch("/api/comments", {
+    const res = await fetch(`/api/posts/${postId}/change-requests`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId, body: combinedComment, categories: filledCategories }),
+      body: JSON.stringify({ items }),
     });
     setLoading(false);
     if (!res.ok) {
@@ -180,7 +182,7 @@ export function ApprovalActions({
         <div className="flex gap-2">
           <Button
             variant="primary"
-            disabled={loading || entries.length === 0}
+            disabled={loading || items.length === 0}
             onClick={() => (locked ? submitSupplement() : submit("aenderung_gewuenscht"))}
           >
             {loading ? "Sende…" : locked ? "Ergänzung senden" : "Änderungswunsch senden"}
@@ -217,7 +219,8 @@ export function ApprovalActions({
           <p className="text-sm font-medium">Deine Änderungswünsche werden bearbeitet.</p>
           <p className="text-xs text-ink-300">
             Du bekommst eine E-Mail, sobald die Überarbeitung bereit ist. Freigeben oder eine neue
-            Änderungsrunde ist bis dahin nicht möglich.
+            Änderungsrunde ist bis dahin nicht möglich. Tippfehler korrigierst du direkt oben im
+            jeweiligen Punkt, vergessene Punkte ergänzt du hier.
           </p>
         </div>
         {roundsInfo}

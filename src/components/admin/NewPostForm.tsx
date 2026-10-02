@@ -3,7 +3,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createPost } from "@/lib/actions/admin";
+import { announceNewPost, createPost } from "@/lib/actions/admin";
 import { createClient } from "@/lib/supabase/client";
 import { uploadFileToR2 } from "@/lib/r2/upload-client";
 import { formatFileSize } from "@/lib/format";
@@ -93,6 +93,9 @@ export function NewPostForm({
         patchFile(item.id, { error: err instanceof Error ? err.message : "Fehler" });
       }
     }
+
+    // Kunde erst informieren, wenn die Medien oben sind (nur bei "Zur Freigabe").
+    await announceNewPost(created.id).catch(() => {});
 
     if (failed === 0) {
       router.push(`/admin/beitraege/${created.id}`);

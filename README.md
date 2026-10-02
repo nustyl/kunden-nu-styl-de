@@ -66,9 +66,10 @@ Netlify (Hosting) · optional Resend (E-Mail).
    ausführen: `0001_init.sql`, `0002_add_status_value.sql` (muss allein
    laufen), `0003_revision_rounds_and_scheduling.sql`,
    `0004_revision_rounds_per_format.sql`,
-   `0005_edit_delete_comments.sql`. Das legt Tabellen, RLS-Policies,
-   Trigger und die Funktionen für Freigabe, Terminvorschlag und
-   Kommentare an. Bei einem Update der App zuerst die neuen Migrationen
+   `0005_edit_delete_comments.sql`, `0006_change_requests.sql`,
+   `0007_drop_old_set_post_status.sql`. Das legt Tabellen, RLS-Policies,
+   Trigger und die Funktionen für Freigabe, Änderungswünsche,
+   Terminvorschlag und Kommentare an. Bei einem Update der App zuerst die neuen Migrationen
    ausführen, dann deployen.
 7. **Deinen eigenen Account zum Admin machen:**
    1. Da die Registrierung deaktiviert ist, lade dich zuerst selbst ein:
@@ -287,7 +288,7 @@ src/
     r2/{client,presign}.ts
     email/resend.ts
     actions/admin.ts        Server Actions für das Admin-Panel
-supabase/migrations/               0001–0005: Tabellen, RLS, Trigger, Funktionen
+supabase/migrations/               0001–0007: Tabellen, RLS, Trigger, Funktionen
 ```
 
 ## Sicherheitsmodell (kurz)

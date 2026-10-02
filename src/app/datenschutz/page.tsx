@@ -67,7 +67,7 @@ export default function DatenschutzPage() {
         <ul className="list-disc pl-5 grid gap-2">
           <li>
             <strong>Supabase, Inc.</strong> — Authentifizierung (Anmeldelink) und Datenbank
-            (Beitrags-Metadaten, Kommentare, Freigabe-Status). Serverstandort der Datenbank:
+            (Beitrags-Metadaten, Kommentare, Änderungswünsche, Freigabe-Status). Serverstandort der Datenbank:
             Frankfurt/EU.
           </li>
           <li>
@@ -116,12 +116,15 @@ export default function DatenschutzPage() {
       <LegalSection heading="7. Cookies & lokale Speicherung">
         <p>
           Dieses Portal verwendet keine Tracking- oder Marketing-Cookies und keine Analysetools.
-          Für die Anmeldung setzt Supabase ein technisch notwendiges Cookie, das Ihre Sitzung nach
-          dem Login aufrechterhält. Ohne dieses Cookie ist die Nutzung des Portals nicht möglich.
+          Für die Anmeldung wird ein technisch notwendiges Cookie gesetzt (&bdquo;sb-…-auth-token&ldquo;),
+          das Ihre Sitzung nach dem Login aufrechterhält. Es enthält keine Werbe- oder
+          Analysedaten und wird beim Abmelden gelöscht. Ohne dieses Cookie ist die Nutzung des
+          Portals nicht möglich.
         </p>
         <p>
-          Diese Speicherung ist gemäß § 25 Abs. 2 Nr. 2 TTDSG technisch erforderlich und bedarf
-          keiner gesonderten Einwilligung.
+          Diese Speicherung ist gemäß § 25 Abs. 2 Nr. 2 TDDDG (Telekommunikation-Digitale-Dienste-
+          Datenschutz-Gesetz) unbedingt erforderlich und bedarf daher keiner Einwilligung. Ein
+          Cookie-Banner ist aus diesem Grund nicht erforderlich.
         </p>
       </LegalSection>
 

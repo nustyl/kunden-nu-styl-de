@@ -1,18 +1,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { notifyAdmin } from "@/lib/email/resend";
+import { notifyAdmin, notifyClientComment } from "@/lib/email/resend";
 
 export async function POST(request: Request) {
-  const { postId, body, categories } = await request.json();
+  const { postId, body } = await request.json();
   if (!postId || !body?.trim()) {
     return NextResponse.json({ error: "Fehlende Angaben" }, { status: 400 });
   }
-  const cleanCategories: string[] = Array.isArray(categories)
-    ? categories
-        .filter((c: unknown): c is string => typeof c === "string" && c.trim() !== "")
-        .map((c) => c.trim().slice(0, 100))
-        .slice(0, 40)
-    : [];
 
   const supabase = await createClient();
   const {
@@ -34,13 +28,24 @@ export async function POST(request: Request) {
       post_id: postId,
       author_id: user.id,
       body: body.trim(),
-      categories: cleanCategories.length > 0 ? cleanCategories : null,
     })
     .select()
     .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  // NU STYL schreibt -> Kunde informieren (nicht bei Entwürfen, die sieht er nicht).
+  if (profile?.role === "admin") {
+    const { data: post } = await supabase
+      .from("posts")
+      .select("id, title, client_id, status")
+      .eq("id", postId)
+      .single();
+    if (post && post.status !== "entwurf") {
+      await notifyClientComment(post.client_id, post, body.trim());
+    }
   }
 
   if (profile?.role === "client") {
@@ -52,9 +57,7 @@ export async function POST(request: Request) {
 
     await notifyAdmin(
       `Neuer Kommentar: ${post?.title ?? ""}`,
-      `${profile.full_name ?? "Ein Kunde"} hat zu "${post?.title ?? postId}" kommentiert:${
-        cleanCategories.length > 0 ? `\nKategorien: ${cleanCategories.join(", ")}` : ""
-      }\n\n${body}`
+      `${profile.full_name ?? "Ein Kunde"} hat zu "${post?.title ?? postId}" kommentiert:\n\n${body}`
     );
   }
 
